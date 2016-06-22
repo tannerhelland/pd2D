@@ -1,0 +1,488 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+  Persistable = 0  'NotPersistable
+  DataBindingBehavior = 0  'vbNone
+  DataSourceBehavior  = 0  'vbNone
+  MTSTransactionMode  = 0  'NotAnMTSObject
+END
+Attribute VB_Name = "pd2DSerialize"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = True
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = False
+'***************************************************************************
+'PhotoDemon Internal Parameter Handler v2
+'Copyright 2013-2016 by Tanner Helland
+'Created: 25/March/13
+'Last updated: 05/October/15
+'Last update: new helper function for adding a bunch of parameters at once
+'
+'PhotoDemon has unique needs regarding parameter passing.  Because it allows the user to record all actions as part of
+' macros, the program needs a way to not only trade around parameters, but also store them in a file.
+'
+'The problem occurs when trying to develop a single system that works with all possible function parameters.  Some actions,
+' like "Invert Image", require no additional information.  Others, like "Curves", require a huge amount of custom data.
+' Various functions utilize conceivable every type of value (bool, int, float, custom types, etc), and if a macro is
+' recording a function, all those specialized parameters need to be tracked and written to file.
+'
+'The easiest way to handle that kind of variety from within VB is to use a string.  This allows any amount - and type -
+' of custom parameter data to be recorded, stored, and easily transferred between functions.
+'
+'Individual functions therefore rely on this class to create and parse parameter strings for them.
+'
+'In summer 2015, I moved from a pipe-delimited parameter system (where parameters were listed in order, and retrieved by order)
+' to an order-agnostic XML system, where parameters are retrieved by name.  This class uses its own XML parsing code, which
+' includes a few greatly stripped-down (and speed-optimized) basic XML functions from the main pdXML class.  This micro-XML
+' parsing code introduces a few restrictions:
+' 1) All comparisons are case-sensitive.  If you change case in PD's source, you will invalidate old parameters, by design.
+' 2) All parameter names must be unique.
+' 3) Parameter names do not support attribute tags.  Come up with different parameter names, instead.
+'
+'All source code in this file is licensed under a modified BSD license.  This means you may use the code in your own
+' projects IF you provide attribution.  For more information, please visit http://photodemon.org/about/license/
+'
+'***************************************************************************
+
+Option Explicit
+Option Compare Binary
+
+'Current parameter string.
+Private m_ParamString As String
+
+Public Function GetParamString() As String
+    GetParamString = m_ParamString
+End Function
+
+'If you obtain a parameter string from elsewhere (e.g. a PDI file), you can simple pass it as-is to this function
+Public Sub SetParamString(ByVal srcString As String)
+    m_ParamString = srcString
+End Sub
+
+Public Sub Reset(Optional ByVal paramStringVersion As Double = 1#)
+    m_ParamString = "<version>" & Trim$(Str(paramStringVersion)) & "</version>"
+End Sub
+
+Private Sub Class_Initialize()
+    
+    'For now, this class does not add any extra XML around the parameters themselves.
+    ' It will, however, create a generic "version" tag at version 1.0.  Functions are free to override this as necessary.
+    Me.Reset
+    
+End Sub
+
+'If a function changes drastically enough, it is free to use the "created-by-default" version tag to adjust handling as necessary.
+Public Function GetParamVersion() As Double
+    
+    Dim versionString As String
+    If GetParamValue("version", versionString) Then
+        GetParamVersion = CDblCustom(versionString)
+    Else
+        GetParamVersion = 0
+    End If
+    
+End Function
+
+Public Sub SetParamVersion(Optional ByVal newVersion As Double = 1#)
+    UpdateParam "version", newVersion, True
+End Sub
+
+'Simple check to see if a parameter exists
+Public Function DoesParamExist(ByRef paramName As String) As Boolean
+    
+    'Make the parameter name XML-safe
+    paramName = GetXMLSafeName(paramName)
+    
+    If InStr(1, m_ParamString, "<" & paramName & ">") Then
+        DoesParamExist = True
+    Else
+        DoesParamExist = False
+    End If
+    
+End Function
+
+'Retrieve various type-specific parameters.  Note that these ultimately wrap getParamValue; they simply cast the result explicitly.
+Public Function GetBool(ByVal paramName As String, Optional ByVal defaultReturn As Boolean = False) As Boolean
+    
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetBool = CBool(Trim$(paramValue))
+    Else
+        GetBool = defaultReturn
+    End If
+
+End Function
+
+Public Function GetByte(ByVal paramName As String, Optional ByVal defaultReturn As Byte = 0) As Byte
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetByte = CByte(Trim$(paramValue))
+    Else
+        GetByte = defaultReturn
+    End If
+
+End Function
+
+Public Function GetInteger(ByVal paramName As String, Optional ByVal defaultReturn As Integer = 0) As Integer
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetInteger = CInt(CDblCustom(Trim$(paramValue)))
+    Else
+        GetInteger = defaultReturn
+    End If
+
+End Function
+
+Public Function GetLong(ByVal paramName As String, Optional ByVal defaultReturn As Long = 0) As Long
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetLong = CLng(CDblCustom(Trim$(paramValue)))
+    Else
+        GetLong = defaultReturn
+    End If
+
+End Function
+
+Public Function GetSingle(ByVal paramName As String, Optional ByVal defaultReturn As Single = 0#) As Single
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetSingle = CDblCustom(Trim$(paramValue))
+    Else
+        GetSingle = defaultReturn
+    End If
+
+End Function
+
+Public Function GetDouble(ByVal paramName As String, Optional ByVal defaultReturn As Double = 0#) As Double
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetDouble = CDblCustom(Trim$(paramValue))
+    Else
+        GetDouble = defaultReturn
+    End If
+
+End Function
+
+Public Function GetString(ByVal paramName As String, Optional ByVal defaultReturn As String = "") As String
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetString = paramValue
+    Else
+        GetString = defaultReturn
+    End If
+
+End Function
+
+Public Function GetVariant(ByVal paramName As String, Optional ByVal defaultReturn As Variant = Empty) As Variant
+
+    Dim paramValue As String
+    If GetParamValue(paramName, paramValue) Then
+        GetVariant = CVar(paramValue)
+    Else
+        GetVariant = defaultReturn
+    End If
+
+End Function
+
+'Given a parameter name, fill a user-supplied string with the parameter value.
+' Returns TRUE if parameter exists; FALSE otherwise.
+Private Function GetParamValue(ByVal paramName As String, ByRef dstString As String) As Boolean
+    
+    'Make the parameter name XML-safe
+    paramName = GetXMLSafeName(paramName)
+    
+    Dim tagStart As Long, tagEnd As Long
+    tagStart = InStr(1, m_ParamString, "<" & paramName & ">")
+    
+    'If the opening tag was found, we also need to find the closing tag.
+    If tagStart > 0 Then
+    
+        tagEnd = InStr(tagStart, m_ParamString, "</" & paramName & ">")
+        
+        'If the closing tag exists, return everything between that and the opening tag
+        If tagEnd > tagStart Then
+            
+            'Increment the tag start location by the length of the tag plus two (+1 for each bracket: <>)
+            tagStart = tagStart + Len(paramName) + 2
+            
+            If tagEnd > tagStart Then
+                dstString = Mid$(m_ParamString, tagStart, tagEnd - tagStart)
+                dstString = UnDelimitParamValue(dstString)
+                GetParamValue = True
+            Else
+                dstString = ""
+                GetParamValue = False
+            End If
+            
+        Else
+            Debug.Print "WARNING: requested parameter (" & paramName & ") wasn't properly closed!"
+            dstString = ""
+            GetParamValue = False
+        End If
+        
+    Else
+        dstString = ""
+        GetParamValue = False
+    End If
+
+End Function
+
+'Blindly add a parameter to the master string.  No special checks (e.g. duplicates) are applied; use updateParam if you need those.
+Public Function AddParam(ByVal paramName As String, ByVal paramValue As Variant) As Boolean
+    
+    'Convert the parameter value into a string.  We handle this manually to minimize the chance of locale issues.
+    Dim strParamValue As String
+    
+    If VarType(paramValue) = vbByte Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbInteger Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbLong Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbSingle Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbDouble Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbDecimal Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbCurrency Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbNull Then
+        strParamValue = Trim$(Str(0))
+    ElseIf VarType(paramValue) = vbBoolean Then
+        strParamValue = Trim$(Str(paramValue))
+    ElseIf VarType(paramValue) = vbString Then
+        strParamValue = paramValue
+    ElseIf VarType(paramValue) = vbDate Then
+        strParamValue = Format(paramValue, "yyyy-mm-dd h:mm:ss", vbSunday, vbFirstJan1)
+    
+    'Pray for a correct implicit cast result
+    Else
+        strParamValue = paramValue
+    End If
+    
+    'Make the parameter name and value XML-safe
+    paramName = GetXMLSafeName(paramName)
+    strParamValue = DelimitParamValue(strParamValue)
+    
+    'Build a string with the parameter name and value we were passed
+    Dim newParamEntry As String
+    newParamEntry = vbCrLf & "<" & paramName & ">" & strParamValue & "</" & paramName & ">"
+            
+    'Tack it onto the master string
+    m_ParamString = m_ParamString & newParamEntry
+    
+    AddParam = True
+    
+End Function
+
+'Want to add multiple parameters at once?  Use this function, and call it using the order "Name", Value, "Name 2", Value 2...
+Public Function AddMultipleParams(ParamArray allParams() As Variant) As Boolean
+    
+    On Error GoTo multiParamFailure
+    
+    If UBound(allParams) >= LBound(allParams) Then
+    
+        Dim tmpName As String, tmpValue As Variant
+        
+        Dim i As Long
+        For i = LBound(allParams) To UBound(allParams) Step 2
+            
+            'Parameters must be passed in a strict name/value order.  An odd number of parameters will cause crashes.
+            tmpName = allParams(i)
+            
+            If (i + 1) <= UBound(allParams) Then
+                tmpValue = allParams(i + 1)
+            Else
+                Err.Raise 9
+            End If
+            
+            'Add this key/value pair to the current running param string
+            Me.AddParam tmpName, tmpValue
+            
+        Next i
+    
+    End If
+    
+    AddMultipleParams = True
+    
+    Exit Function
+    
+multiParamFailure:
+    
+    #If DEBUGMODE = 1 Then
+        pdDebug.LogAction "WARNING!  Parse failure in pd2DSerialize.addMultipleParams()."
+    #End If
+    
+    AddMultipleParams = False
+
+End Function
+
+'Add an existing XML string to this one.  The incoming string is not modified in any way, so please make sure it contains
+' valid XML!
+Public Sub AddXMLString(ByRef srcString As String)
+    m_ParamString = m_ParamString & srcString
+End Sub
+
+'Update a given parameter.  If the parameter is not found, it will be added to the string. (Create-if-missing behavior can be toggled.)
+Public Function UpdateParam(ByVal paramName As String, ByVal paramValue As String, Optional ByVal createIfMissing As Boolean = True) As Boolean
+    
+    'Make the parameter name and value XML-safe
+    paramName = GetXMLSafeName(paramName)
+    paramValue = DelimitParamValue(paramValue)
+    
+    'See if the parameter already exists
+    Dim paramLocation As Long
+    paramLocation = InStr(1, m_ParamString, "<" & paramName & ">")
+        
+    Dim topHalf As String, bottomHalf As String
+        
+    'If the parameter already exists, just update its value in-place.
+    If (paramLocation > 0) Then
+    
+        'Split the XML file into two halves: the half before the relevant tag, and the half after
+        Dim paramCloseLocation As Long
+        paramCloseLocation = InStr(paramLocation, m_ParamString, "</" & paramName & ">")
+        SplitStringIn2 m_ParamString, paramCloseLocation - 1, topHalf, bottomHalf
+        
+        'The "topHalf" string now includes everything before the closing tag.  Chop it off at the end of the start tag (e.g. after
+        ' the closing bracket), add the new contents, then add the bottom half of the original XML string.
+        m_ParamString = Left$(topHalf, paramLocation + Len(paramName) + 1) & paramValue & bottomHalf
+        
+        UpdateParam = True
+    
+    'The parameter does not exist; add it contingent on createIfMissing
+    Else
+    
+        If createIfMissing Then
+            
+            'Build a string with the parameter name and value we were passed
+            Dim newParamEntry As String
+            newParamEntry = vbCrLf & "<" & paramName & ">" & paramValue & "</" & paramName & ">"
+            
+            'Reassemble the primary string
+            m_ParamString = m_ParamString & newParamEntry
+            
+            UpdateParam = True
+            
+        Else
+            UpdateParam = False
+        End If
+        
+    End If
+
+End Function
+
+'Given a string and a position, split it into two strings at that position
+Private Function SplitStringIn2(ByRef srcString As String, ByVal splitPosition As Long, ByRef dstFirstHalf As String, ByRef dstSecondHalf As String)
+    dstFirstHalf = Left$(srcString, splitPosition)
+    dstSecondHalf = Right$(srcString, Len(srcString) - splitPosition)
+End Function
+
+'Given a string, replace any characters that are not allowed with underscores; this is used as a failsafe when adding
+' new parameters to the master string.
+Private Function GetXMLSafeName(ByRef srcString As String) As String
+    
+    'Remove any incidental white space before processing
+    GetXMLSafeName = Trim(srcString)
+    
+    'Create a string of valid numerical characters, based on the XML spec at http://www.w3.org/TR/1998/REC-xml-19980210.html#sec-common-syn
+    Dim validChars As String
+    validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_:"
+    
+    'Loop through the source string and replace any invalid characters with underscore
+    Dim i As Long
+    
+    For i = 1 To Len(GetXMLSafeName)
+        If InStr(validChars, Mid$(GetXMLSafeName, i, 1)) = 0 Then
+            GetXMLSafeName = Left$(GetXMLSafeName, i - 1) & "_" & Right$(GetXMLSafeName, Len(GetXMLSafeName) - i)
+        End If
+    Next i
+    
+End Function
+
+'Given a parameter value string, make it XML-safe (e.g. replace "<" and ">" with HTML equivalents).
+' Note that we don't currently delimit other chars because PD uses only a subset of XML functionality, by design.
+Private Function DelimitParamValue(ByVal srcString As String) As String
+
+    If InStr(1, srcString, "<") Then srcString = Replace(srcString, "<", "&lt;")
+    If InStr(1, srcString, ">") Then srcString = Replace(srcString, ">", "&gt;")
+    
+    DelimitParamValue = srcString
+
+End Function
+
+Private Function UnDelimitParamValue(ByVal srcString As String) As String
+        
+    If InStr(1, srcString, "&lt;") Then srcString = Replace(srcString, "&lt;", "<")
+    If InStr(1, srcString, "&gt;") Then srcString = Replace(srcString, "&gt;", ">")
+    
+    UnDelimitParamValue = srcString
+    
+End Function
+
+'A custom CDbl function that accepts both commas and decimals as a separator; this is important when moving floating-point data,
+' represented as strings, between locales.
+Private Function CDblCustom(ByVal srcString As String) As Double
+
+    'Replace commas with periods
+    If InStr(1, srcString, ",") > 0 Then srcString = Replace(srcString, ",", ".")
+    
+    'We can now use Val() to convert to Double
+    If IsNumberLocaleUnaware(srcString) Then
+        CDblCustom = Val(srcString)
+    Else
+        CDblCustom = 0
+    End If
+
+End Function
+
+'Locale-unaware check for strings that can successfully be converted to numbers.  Thank you to
+' http://stackoverflow.com/questions/18368680/vb6-isnumeric-behaviour-in-windows-8-windows-2012
+' for the code.  (Note that the original function listed there is buggy!  I've created additional
+' fixes for exponent strings, which the original code did not handle correctly.)
+Public Function IsNumberLocaleUnaware(ByRef Expression As String) As Boolean
+    
+    Dim Negative As Boolean
+    Dim Number As Boolean
+    Dim Period As Boolean
+    Dim Positive As Boolean
+    Dim Exponent As Boolean
+    Dim x As Long
+    For x = 1& To Len(Expression)
+        Select Case Mid$(Expression, x, 1&)
+        Case "0" To "9"
+            Number = True
+        Case "-"
+            If Period Or Number Or Negative Or Positive Then Exit Function
+            Negative = True
+        Case "."
+            If Period Or Exponent Then Exit Function
+            Period = True
+        Case "E", "e"
+            If Not Number Then Exit Function
+            If Exponent Then Exit Function
+            Exponent = True
+            Number = False
+            Negative = False
+            Period = False
+        Case "+"
+            If Not Exponent Then Exit Function
+            If Number Or Negative Or Positive Then Exit Function
+            Positive = True
+        Case " ", vbTab, vbVerticalTab, vbCr, vbLf, vbFormFeed
+            If Period Or Number Or Exponent Or Negative Then Exit Function
+        Case Else
+            Exit Function
+        End Select
+    Next x
+        
+    IsNumberLocaleUnaware = Number
+    
+End Function

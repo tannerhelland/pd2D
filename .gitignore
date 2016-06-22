@@ -301,3 +301,13 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Classic VB and other miscellanea
+# ================================
+
+*.bak
+*.exe
+*.ini
+*.log
+*.vbw
+*.zip
