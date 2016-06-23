@@ -440,6 +440,16 @@ Public Function QuickCreateRegionRectangle(ByRef dstRegion As pd2DRegion, ByVal 
     End With
 End Function
 
+'Shortcut function for quickly creating a blank surface with the default rendering backend and default rendering settings
+Public Function QuickCreateBlankSurface(ByRef dstSurface As pd2DSurface, ByVal surfaceWidth As Long, ByVal surfaceHeight As Long, Optional ByVal surfaceSupportsAlpha As Boolean = True, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal initialColor As Long = vbWhite, Optional ByVal initialOpacity As Single = 100#) As Boolean
+    If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
+    With dstSurface
+        .SetDebugMode m_DebugMode
+        If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
+        QuickCreateBlankSurface = .CreateBlankSurface(surfaceWidth, surfaceHeight, surfaceSupportsAlpha, initialColor, initialOpacity)
+    End With
+End Function
+
 'Shortcut function for creating a new surface with the default rendering backend and default rendering settings
 Public Function QuickCreateSurfaceFromDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
