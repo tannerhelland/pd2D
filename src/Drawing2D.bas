@@ -394,12 +394,6 @@ Public Type GRADIENTPOINT
     PointPosition As Single
 End Type
 
-'Many drawing features lean on various geometry functions
-Public Const PI As Double = 3.14159265358979
-Public Const PI_HALF As Double = 1.5707963267949
-Public Const PI_DOUBLE As Double = 6.28318530717958
-Public Const PI_DIV_180 As Double = 0.017453292519943
-
 'If GDI+ is initialized successfully, this will be set to TRUE
 Private m_GDIPlusAvailable As Boolean
 

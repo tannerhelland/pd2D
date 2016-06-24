@@ -22,6 +22,32 @@ Begin VB.Form frmSample
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   955
    StartUpPosition =   3  'Windows Default
+   Begin VB.CheckBox chkTest2Curvature 
+      BackColor       =   &H80000005&
+      Caption         =   "also randomize curvature"
+      Height          =   255
+      Left            =   600
+      TabIndex        =   15
+      Top             =   4320
+      Width           =   3615
+   End
+   Begin VB.CommandButton cmdTest2AddPolygons 
+      Caption         =   "Add more polygons"
+      Height          =   615
+      Left            =   600
+      TabIndex        =   14
+      Top             =   3600
+      Width           =   3615
+   End
+   Begin VB.CommandButton cmdTest 
+      Caption         =   "Go!"
+      Height          =   615
+      Index           =   1
+      Left            =   600
+      TabIndex        =   13
+      Top             =   2880
+      Width           =   3615
+   End
    Begin VB.CheckBox chkAntialiasing 
       BackColor       =   &H80000005&
       Caption         =   "use antialiasing"
@@ -38,8 +64,8 @@ Begin VB.Form frmSample
       Height          =   615
       Left            =   600
       TabIndex        =   10
-      Top             =   5160
-      Width           =   3255
+      Top             =   6960
+      Width           =   3615
    End
    Begin VB.CheckBox chkTest1Complete 
       BackColor       =   &H80000005&
@@ -48,25 +74,25 @@ Begin VB.Form frmSample
       Left            =   600
       TabIndex        =   8
       Top             =   2040
-      Width           =   3255
+      Width           =   3615
    End
-   Begin VB.CheckBox chkTest1Polygon 
+   Begin VB.CheckBox chkTest1Lines 
       BackColor       =   &H80000005&
-      Caption         =   "use curves instead of lines"
+      Caption         =   "use lines instead of curves"
       Height          =   255
       Left            =   600
       TabIndex        =   7
       Top             =   1680
-      Width           =   3255
+      Width           =   3615
    End
    Begin VB.CommandButton cmdTest 
       Caption         =   "Stop!"
       Height          =   615
-      Index           =   1
+      Index           =   2
       Left            =   600
       TabIndex        =   6
-      Top             =   6240
-      Width           =   3255
+      Top             =   5880
+      Width           =   3615
    End
    Begin VB.Timer tmrSample 
       Enabled         =   0   'False
@@ -81,7 +107,7 @@ Begin VB.Form frmSample
       Left            =   600
       TabIndex        =   4
       Top             =   960
-      Width           =   3255
+      Width           =   3615
    End
    Begin VB.PictureBox picOutput 
       Appearance      =   0  'Flat
@@ -108,6 +134,25 @@ Begin VB.Form frmSample
    End
    Begin VB.Label lblTitle 
       BackStyle       =   0  'Transparent
+      Caption         =   "animated polygons"
+      BeginProperty Font 
+         Name            =   "Segoe UI"
+         Size            =   12
+         Charset         =   0
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      Height          =   315
+      Index           =   5
+      Left            =   360
+      TabIndex        =   12
+      Top             =   2520
+      Width           =   3810
+   End
+   Begin VB.Label lblTitle 
+      BackStyle       =   0  'Transparent
       Caption         =   "erase existing drawing"
       BeginProperty Font 
          Name            =   "Segoe UI"
@@ -122,7 +167,7 @@ Begin VB.Form frmSample
       Index           =   4
       Left            =   360
       TabIndex        =   9
-      Top             =   4800
+      Top             =   6600
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -141,12 +186,12 @@ Begin VB.Form frmSample
       Index           =   3
       Left            =   360
       TabIndex        =   5
-      Top             =   5880
+      Top             =   5520
       Width           =   3330
    End
    Begin VB.Label lblTitle 
       BackStyle       =   0  'Transparent
-      Caption         =   "polygon demo by Olaf Schmidt"
+      Caption         =   "curve demo (by Olaf Schmidt)"
       BeginProperty Font 
          Name            =   "Segoe UI"
          Size            =   12
@@ -161,7 +206,7 @@ Begin VB.Form frmSample
       Left            =   360
       TabIndex        =   3
       Top             =   600
-      Width           =   3330
+      Width           =   3810
    End
    Begin VB.Label lblTitle 
       AutoSize        =   -1  'True
@@ -298,10 +343,11 @@ Private m_TargetPictureBox As pd2DSurface   'The on-screen surface
 Private Enum PD_2D_Tests
     NoTestRunning = -1
     Test1_SplineDemo = 0
+    Test2_PolygonDemo = 1
 End Enum
 
 #If False Then
-    Private Const NoTestRunning = -1, Test1_SplineDemo = 0
+    Private Const NoTestRunning = -1, Test1_SplineDemo = 0, Test2_PolygonDemo = 1
 #End If
 
 'This is the test we're currently running (if any).  The "tmrSample" timer relies on this to know what animation
@@ -312,17 +358,67 @@ Private m_ActiveTest As PD_2D_Tests
 ' You can change this constants to modify the animations.
 Private Const DEFAULT_ANIMATION_POINTS As Long = 6
 Private m_NumOfPoints As Long
-Private m_Test1UseCurves As Boolean, m_Test1CloseShape As Boolean
+Private m_Test1UseLines As Boolean, m_Test1CloseShape As Boolean
 Private m_Test1ColorPhase As Long, m_Test1ColorIncrement As Single
+Private m_Test2UseCurvature As Boolean
 
 'pd2D supports subpixel positioning, which means that pixels no longer need to be defined as integers.
 ' The POINTFLOAT type is very simple: it simply includes an x and y coordinate, both defined as Singles.
-Private listOfPoints() As POINTFLOAT
-Private listOfSignsX() As Long, listOfSignsY() As Long
+Private m_listOfPoints() As POINTFLOAT
+Private m_listOfSignsX() As Long, m_listOfSignsY() As Long
+
+Private Type AnimatedPolygon
+    PolygonCenter As POINTFLOAT
+    PolygonCurvature As Single
+    PolygonDirection As Single
+    PolygonSides As Long
+    PolygonSpeed As Single
+    PolygonRadius As Single
+    PolygonRotation As Single
+    PolygonTransform As pd2DTransform
+End Type
+
+Private m_ListOfPolygons() As AnimatedPolygon
+
+Private Sub chkTest2Curvature_Click()
+    EraseAllBuffers
+    m_Test2UseCurvature = CBool(chkTest2Curvature.Value = vbChecked)
+End Sub
 
 Private Sub chkAntialiasing_Click()
     EraseAllBuffers
     If CBool(chkAntialiasing.Value = vbChecked) Then m_BackBuffer.SetSurfaceAntialiasing P2_AA_HighQuality Else m_BackBuffer.SetSurfaceAntialiasing P2_AA_None
+End Sub
+
+'Add more polygons to the demonstration
+Private Sub cmdTest2AddPolygons_Click()
+    
+    Dim picWidth As Single, picHeight As Single
+    picWidth = m_TargetPictureBox.GetSurfaceWidth
+    picHeight = m_TargetPictureBox.GetSurfaceHeight
+    
+    Dim oldNumOfPoints As Long
+    oldNumOfPoints = m_NumOfPoints
+    
+    m_NumOfPoints = m_NumOfPoints + 5
+    ReDim Preserve m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
+    
+    Dim i As Long
+    For i = oldNumOfPoints To m_NumOfPoints - 1
+        With m_ListOfPolygons(i)
+            .PolygonCenter.x = Rnd * picWidth
+            .PolygonCenter.y = Rnd * picHeight
+            .PolygonCurvature = Rnd
+            .PolygonDirection = Rnd * 360
+            .PolygonRadius = 10# + (Rnd * 50)
+            .PolygonRotation = (Rnd * 2 - 1#) / 10
+            .PolygonSides = 3 + (i Mod 6)
+            .PolygonSpeed = 0.001 + (Rnd / 5)
+            Set .PolygonTransform = New pd2DTransform
+            .PolygonTransform.Reset
+        End With
+    Next i
+
 End Sub
 
 Private Sub Form_Load()
@@ -412,6 +508,14 @@ Private Sub cmdTest_Click(Index As Integer)
     
     Dim i As Long
     
+    'When we initialize various animation properties, we're going to randomize things like coordinates
+    ' across the surface of the target picture box.  As such, we'll be accessing the picture box's
+    ' coordinates many times.  Cache those values locally.  (Note that we can pull the dimensions from
+    ' the picture box itself, or from the surface wrapped around it - the two are automatically synched.)
+    Dim picWidth As Single, picHeight As Single
+    picWidth = m_TargetPictureBox.GetSurfaceWidth
+    picHeight = m_TargetPictureBox.GetSurfaceHeight
+    
     'Some tests use the "tmrSample" timer on the main window.  We mark the active test here, before we
     ' start the timer, so the timer knows which animation actions to perform.
     m_ActiveTest = Index
@@ -425,19 +529,43 @@ Private Sub cmdTest_Click(Index As Integer)
         
             'Prepare an initial set of points for the spline animation
             m_NumOfPoints = DEFAULT_ANIMATION_POINTS
-            ReDim listOfPoints(0 To m_NumOfPoints - 1) As POINTFLOAT
-            ReDim listOfSignsX(0 To m_NumOfPoints - 1) As Long: ReDim listOfSignsY(0 To m_NumOfPoints - 1) As Long
+            ReDim m_listOfPoints(0 To m_NumOfPoints - 1) As POINTFLOAT
+            ReDim m_listOfSignsX(0 To m_NumOfPoints - 1) As Long: ReDim m_listOfSignsY(0 To m_NumOfPoints - 1) As Long
             
             'These points are randomly scattered across the picture box's available area.  Note that we can read
             ' the picture box's property directly from the surface object wrapped around it.
             For i = 0 To m_NumOfPoints - 1
-                listOfPoints(i).x = m_TargetPictureBox.GetSurfaceWidth * Rnd
-                listOfPoints(i).y = m_TargetPictureBox.GetSurfaceHeight * Rnd
+                m_listOfPoints(i).x = Rnd * picWidth
+                m_listOfPoints(i).y = Rnd * picHeight
                 
                 'This animation also stores a "sign", either +1 or -1, for each point in the polygon.  When a
                 ' given point hits the edge of the picture box, we'll reverse its direction.
-                listOfSignsX(i) = IIf(i Mod 2, 1, -1)
-                listOfSignsY(i) = IIf(i Mod 2, -1, 1)
+                m_listOfSignsX(i) = IIf(i Mod 2, 1, -1)
+                m_listOfSignsY(i) = IIf(i Mod 2, -1, 1)
+            Next i
+            
+            'Start the animation timer!
+            tmrSample.Enabled = True
+            
+        Case Test2_PolygonDemo
+            
+            'Prepare an initial set of points for the spline animation
+            m_NumOfPoints = DEFAULT_ANIMATION_POINTS
+            ReDim m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
+            
+            For i = 0 To m_NumOfPoints - 1
+                With m_ListOfPolygons(i)
+                    .PolygonCenter.x = Rnd * picWidth
+                    .PolygonCenter.y = Rnd * picHeight
+                    .PolygonCurvature = Rnd
+                    .PolygonDirection = Rnd * 360
+                    .PolygonRadius = 10# + (Rnd * 50)
+                    .PolygonRotation = (Rnd * 2 - 1#) / 10
+                    .PolygonSides = 3 + (i Mod 6)
+                    .PolygonSpeed = 0.001 + (Rnd / 5)
+                    Set .PolygonTransform = New pd2DTransform
+                    .PolygonTransform.Reset
+                End With
             Next i
             
             'Start the animation timer!
@@ -470,21 +598,111 @@ Private Sub tmrSample_Timer()
             
             'Because animation steps are so fast, lets perform a whole bunch of them inside a timer event.
             ' This results in a much smoother effect than waiting for VB's timer object (which can be very erratic).
-            ' much
             For animationSteps = 0 To 127
                 
                 'Iterate through each point in our animated polygon and slightly move its position
                 For i = 0 To m_NumOfPoints - 1
                 
-                    listOfPoints(i).x = listOfPoints(i).x + listOfSignsX(i) * 0.0004 * Abs(listOfPoints(i).y - listOfPoints(i).x)
-                    listOfPoints(i).y = listOfPoints(i).y + listOfSignsY(i) * 0.1 / Abs((33 - listOfPoints(i).y) / (77 + listOfPoints(i).x))
+                    m_listOfPoints(i).x = m_listOfPoints(i).x + m_listOfSignsX(i) * 0.0004 * Abs(m_listOfPoints(i).y - m_listOfPoints(i).x)
+                    m_listOfPoints(i).y = m_listOfPoints(i).y + m_listOfSignsY(i) * 0.1 / Abs((33 - m_listOfPoints(i).y) / (77 + m_listOfPoints(i).x))
                   
                     'If a sample point leaves the screen, reverse its direction
-                    If listOfPoints(i).x < 0 Then listOfSignsX(i) = 1: listOfPoints(i).x = 0
-                    If listOfPoints(i).x > picWidth Then listOfSignsX(i) = -1: listOfPoints(i).x = picWidth
-                    If listOfPoints(i).y < 0 Then listOfSignsY(i) = 1: listOfPoints(i).y = 0
-                    If listOfPoints(i).y > picHeight Then listOfSignsY(i) = -1: listOfPoints(i).y = picHeight
+                    If m_listOfPoints(i).x < 0 Then m_listOfSignsX(i) = 1: m_listOfPoints(i).x = 0
+                    If m_listOfPoints(i).x > picWidth Then m_listOfSignsX(i) = -1: m_listOfPoints(i).x = picWidth
+                    If m_listOfPoints(i).y < 0 Then m_listOfSignsY(i) = 1: m_listOfPoints(i).y = 0
+                    If m_listOfPoints(i).y > picHeight Then m_listOfSignsY(i) = -1: m_listOfPoints(i).y = picHeight
                     
+                Next i
+                
+                'Gradually cycle between colors
+                m_Test1ColorIncrement = m_Test1ColorIncrement + 0.34
+                If m_Test1ColorIncrement > 255 Then
+                    m_Test1ColorIncrement = 0
+                    m_Test1ColorPhase = m_Test1ColorPhase + 1
+                    If m_Test1ColorPhase > 5 Then m_Test1ColorPhase = 0
+                End If
+                
+                Select Case m_Test1ColorPhase
+                    Case 0: DrawDemo RGB(m_Test1ColorIncrement, 255 - m_Test1ColorIncrement, 255)
+                    Case 1: DrawDemo RGB(255, m_Test1ColorIncrement, 255 - m_Test1ColorIncrement)
+                    Case 2: DrawDemo RGB(255 - m_Test1ColorIncrement, 255, m_Test1ColorIncrement)
+                    Case 3: DrawDemo RGB(0, 255 - m_Test1ColorIncrement, m_Test1ColorIncrement)
+                    Case 4: DrawDemo RGB(255 - m_Test1ColorIncrement, m_Test1ColorIncrement, 0)
+                    Case 5: DrawDemo RGB(0, 0, 255 - m_Test1ColorIncrement)
+                End Select
+                
+                'Every 16 animation steps, copy the full contents of the "back buffer" surface onto the
+                ' on-screen picture box.  (Because the picture box's .AutoRedraw property is set to FALSE,
+                ' we do not need to forcibly refresh the picture box.)
+                If (animationSteps And 15) = 0 Then m_Painter.CopyImageI m_TargetPictureBox, 0, 0, m_BackBuffer
+             
+            Next animationSteps
+        
+        Case Test2_PolygonDemo
+            
+            'To move each polygon, we're going to use a "transform" object.  Transform objects "add together"
+            ' transformations over time, which allows you to apply very complex motion with very little code.
+            Dim newCenter As POINTFLOAT, oldCenter As POINTFLOAT, collisionAngle As Double
+            
+            'Because animation steps are so fast, lets perform a whole bunch of them inside a timer event.
+            ' This results in a much smoother effect than waiting for VB's timer object (which can be very erratic).
+            For animationSteps = 0 To 127
+                
+                'Prepare an initial set of points for the spline animation
+                'm_NumOfPoints = DEFAULT_ANIMATION_POINTS
+                'ReDim m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
+                
+                For i = 0 To m_NumOfPoints - 1
+                    
+                    With m_ListOfPolygons(i)
+                    
+                        'Update this polygon's running transformation
+                        oldCenter = .PolygonCenter
+                        .PolygonTransform.ApplyTranslation_Polar .PolygonDirection, .PolygonSpeed, True
+                        
+                        'Find the current (x, y) centerpoint of the polygon, with all translations applied
+                        newCenter = .PolygonCenter
+                        .PolygonTransform.ApplyTransformToPointF newCenter
+                        
+                        'Use the new centerpoint to rotate the polygon around its center according to its
+                        ' randomized "rotation" speed
+                        .PolygonTransform.ApplyRotation .PolygonRotation, newCenter.x, newCenter.y
+                        
+                        'If the polygon is going to fly off an edge of the screen, adjust its angle by 90 degrees
+                        If (newCenter.x > picWidth) Then
+                            .PolygonTransform.ApplyTranslation picWidth - newCenter.x, 0#
+                            If (.PolygonDirection < 180) Then
+                                .PolygonDirection = .PolygonDirection + 90
+                            Else
+                                .PolygonDirection = .PolygonDirection - 90
+                            End If
+                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        ElseIf (newCenter.y > picHeight) Then
+                            .PolygonTransform.ApplyTranslation 0#, picHeight - newCenter.y
+                            If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
+                                .PolygonDirection = .PolygonDirection - 90
+                            Else
+                                .PolygonDirection = .PolygonDirection + 90
+                            End If
+                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        ElseIf (newCenter.x < 0) Then
+                            .PolygonTransform.ApplyTranslation -1 * newCenter.x, 0#
+                            If (.PolygonDirection > 180) Then
+                                .PolygonDirection = .PolygonDirection + 90
+                            Else
+                                .PolygonDirection = .PolygonDirection - 90
+                            End If
+                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        ElseIf (newCenter.y < 0) Then
+                            .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y
+                            If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
+                                .PolygonDirection = .PolygonDirection + 90
+                            Else
+                                .PolygonDirection = .PolygonDirection - 90
+                            End If
+                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        End If
+                    End With
                 Next i
                 
                 'Gradually cycle between colors
@@ -525,7 +743,7 @@ Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
     ' 3) Painting onto our temporary surface.  (Because this surface just "wraps" the picture box, all of our
     '     paint operations will appear immediately on the screen.)
     
-    Dim cPen As pd2DPen, cBrush As pd2DBrush, cPath As pd2DPath
+    Dim cPen As pd2DPen, cPath As pd2DPath
     Set cPath = New pd2DPath
     
     Select Case m_ActiveTest
@@ -536,19 +754,41 @@ Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
             ' and we're going to use "round" junctions where two lines meet (instead of mitered or beveled junctions).
             Drawing2D.QuickCreateSolidPen cPen, 0.5, drawColor, 5#, P2_LJ_Round, P2_LC_Round
             
-            'Next, we're going to copy our sample points into a "path" object.  A path is just a collection of points,
-            ' and they can be as simple as a line, or as complicated as a huge collection of polygons, curves, and
-            ' other shape objects.
-            cPath.ResetPath
-            cPath.AddPolygon m_NumOfPoints, VarPtr(listOfPoints(0)), m_Test1CloseShape, m_Test1UseCurves, 0.5
-            
             'Paint this path onto the output picture box
-            m_Painter.DrawPath m_BackBuffer, cPen, cPath
+            If m_Test1CloseShape Then
+                m_Painter.DrawPolygonF m_BackBuffer, cPen, m_NumOfPoints, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, 0.5
+            Else
+                m_Painter.DrawLinesF_FromPtF m_BackBuffer, cPen, m_NumOfPoints, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, 0.5
+            End If
             
-            'Note that we don't have to free any objects here - pd2D always takes care of that for us.
+        Case Test2_PolygonDemo
             
-    
+            'Create a pen matching the color we were passed.  We're also going to make the pen semi-transparent,
+            ' and we're going to use "round" junctions where two lines meet (instead of mitered or beveled junctions).
+            Drawing2D.QuickCreateSolidPen cPen, 0.5, drawColor, 10#, P2_LJ_Round, P2_LC_Round
+            
+            Dim i As Long
+            For i = 0 To m_NumOfPoints - 1
+                
+                With m_ListOfPolygons(i)
+                    
+                    'Create a path from this polygon
+                    cPath.ResetPath
+                    cPath.AddPolygon_Regular .PolygonSides, .PolygonRadius, .PolygonCenter.x, .PolygonCenter.y, m_Test2UseCurvature, .PolygonCurvature
+                    
+                    'Apply this polygon's transformation
+                    cPath.ApplyTransformation .PolygonTransform
+                    
+                    'Draw this polygon
+                    m_Painter.DrawPath m_BackBuffer, cPen, cPath
+                    
+                End With
+                
+            Next i
+        
     End Select
+    
+    'Note that we don't have to free any objects here - pd2D always takes care of that for us.
 
 End Sub
 
@@ -559,7 +799,7 @@ Private Sub chkTest1Complete_Click()
     m_Test1CloseShape = CBool(chkTest1Complete.Value = vbChecked)
 End Sub
 
-Private Sub chkTest1Polygon_Click()
+Private Sub chkTest1Lines_Click()
     EraseAllBuffers
-    m_Test1UseCurves = CBool(chkTest1Polygon.Value = vbChecked)
+    m_Test1UseLines = CBool(chkTest1Lines.Value = vbChecked)
 End Sub
