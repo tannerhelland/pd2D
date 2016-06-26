@@ -348,6 +348,11 @@ Public Type POINTFLOAT
    y As Single
 End Type
 
+Public Type POINTLONG
+   x As Long
+   y As Long
+End Type
+
 Public Type RECTL
     Left As Long
     Top As Long

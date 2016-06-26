@@ -3,8 +3,8 @@ Attribute VB_Name = "GDI_Plus"
 'GDI+ Interface
 'Copyright 2012-2016 by Tanner Helland
 'Created: 1/September/12
-'Last updated: 18/June/16
-'Last update: ongoing work to clean-up and modernize this (currently disastrous) module
+'Last updated: 26/June/16
+'Last update: add more integer-specific rendering functions
 '
 'This interface provides a means for interacting with various GDI+ features.  GDI+ was originally used as a fallback for image loading
 ' and saving if the FreeImage DLL was not found, but over time it has become more and more integrated into PD.  As of version 6.0, GDI+
@@ -407,14 +407,18 @@ Private Declare Function GdipDisposeImage Lib "gdiplus" (ByVal hImage As Long) A
 Private Declare Function GdipDrawArc Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single, ByVal startAngle As Single, ByVal sweepAngle As Single) As GP_Result
 Private Declare Function GdipDrawArcI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long, ByVal startAngle As Long, ByVal sweepAngle As Long) As GP_Result
 Private Declare Function GdipDrawClosedCurve2 Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipDrawClosedCurve2I Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
 Private Declare Function GdipDrawCurve2 Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipDrawCurve2I Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
 Private Declare Function GdipDrawEllipse Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single) As GP_Result
 Private Declare Function GdipDrawEllipseI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 Private Declare Function GdipDrawLine Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As GP_Result
 Private Declare Function GdipDrawLineI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long) As GP_Result
 Private Declare Function GdipDrawLines Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipDrawLinesI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long) As GP_Result
 Private Declare Function GdipDrawPath Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal hPath As Long) As GP_Result
 Private Declare Function GdipDrawPolygon Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipDrawPolygonI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long) As GP_Result
 Private Declare Function GdipDrawRectangle Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single) As GP_Result
 Private Declare Function GdipDrawRectangleI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 
@@ -1267,17 +1271,31 @@ Public Function GDIPlus_DrawArcI(ByVal dstGraphics As Long, ByVal srcPen As Long
     GDIPlus_DrawArcI = CBool(GdipDrawArcI(dstGraphics, srcPen, centerX - arcRadius, centerY - arcRadius, arcRadius * 2, arcRadius * 2, startAngle, sweepAngle) = GP_OK)
 End Function
 
-Public Function GDIPlus_DrawClosedCurveF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
+Public Function GDIPlus_DrawClosedCurveF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
     Dim tmpReturn As GP_Result
-    tmpReturn = GdipDrawClosedCurve2(dstGraphics, srcPen, ptrToFloatArray, numOfPoints, curveTension)
+    tmpReturn = GdipDrawClosedCurve2(dstGraphics, srcPen, ptrToPtFArray, numOfPoints, curveTension)
     GDIPlus_DrawClosedCurveF = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
 End Function
 
-Public Function GDIPlus_DrawCurveF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
+Public Function GDIPlus_DrawClosedCurveI(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
     Dim tmpReturn As GP_Result
-    tmpReturn = GdipDrawCurve2(dstGraphics, srcPen, ptrToFloatArray, numOfPoints, curveTension)
+    tmpReturn = GdipDrawClosedCurve2I(dstGraphics, srcPen, ptrToPtLArray, numOfPoints, curveTension)
+    GDIPlus_DrawClosedCurveI = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_DrawCurveF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawCurve2(dstGraphics, srcPen, ptrToPtFArray, numOfPoints, curveTension)
     GDIPlus_DrawCurveF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_DrawCurveI(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawCurve2I(dstGraphics, srcPen, ptrToPtLArray, numOfPoints, curveTension)
+    GDIPlus_DrawCurveI = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
 End Function
 
@@ -1289,10 +1307,17 @@ Public Function GDIPlus_DrawLineI(ByVal dstGraphics As Long, ByVal srcPen As Lon
     GDIPlus_DrawLineI = CBool(GdipDrawLineI(dstGraphics, srcPen, x1, y1, x2, y2) = GP_OK)
 End Function
 
-Public Function GDIPlus_DrawLinesF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long) As Boolean
+Public Function GDIPlus_DrawLinesF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long) As Boolean
     Dim tmpReturn As GP_Result
-    tmpReturn = GdipDrawLines(dstGraphics, srcPen, ptrToFloatArray, numOfPoints)
+    tmpReturn = GdipDrawLines(dstGraphics, srcPen, ptrToPtFArray, numOfPoints)
     GDIPlus_DrawLinesF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_DrawLinesI(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawLinesI(dstGraphics, srcPen, ptrToPtLArray, numOfPoints)
+    GDIPlus_DrawLinesI = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
 End Function
 
@@ -1300,10 +1325,17 @@ Public Function GDIPlus_DrawPath(ByVal dstGraphics As Long, ByVal srcPen As Long
     GDIPlus_DrawPath = CBool(GdipDrawPath(dstGraphics, srcPen, srcPath) = GP_OK)
 End Function
 
-Public Function GDIPlus_DrawPolygonF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long) As Boolean
+Public Function GDIPlus_DrawPolygonF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long) As Boolean
     Dim tmpReturn As GP_Result
-    tmpReturn = GdipDrawPolygon(dstGraphics, srcPen, ptrToFloatArray, numOfPoints)
+    tmpReturn = GdipDrawPolygon(dstGraphics, srcPen, ptrToPtFArray, numOfPoints)
     GDIPlus_DrawPolygonF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_DrawPolygonI(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawPolygonI(dstGraphics, srcPen, ptrToPtLArray, numOfPoints)
+    GDIPlus_DrawPolygonI = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
 End Function
 

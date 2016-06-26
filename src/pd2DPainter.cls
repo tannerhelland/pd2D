@@ -212,14 +212,14 @@ Friend Function DrawLineF_FromPtF(ByRef dstSurface As pd2DSurface, ByRef srcPen 
     End If
 End Function
 
-Public Function DrawLinesF_FromPtF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToFloatArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+Public Function DrawLinesF_FromPtF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
     If VerifyDrawBackends(dstSurface, srcPen) Then
         Select Case dstSurface.GetSurfaceBackend
             Case P2_DefaultBackend, P2_GDIPlusBackend
                 If useCurveAlgorithm Then
-                    DrawLinesF_FromPtF = GDI_Plus.GDIPlus_DrawCurveF(dstSurface.GetHandle, srcPen.GetHandle, ptrToFloatArray, numOfPoints, curvatureTension)
+                    DrawLinesF_FromPtF = GDI_Plus.GDIPlus_DrawCurveF(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtFArray, numOfPoints, curvatureTension)
                 Else
-                    DrawLinesF_FromPtF = GDI_Plus.GDIPlus_DrawLinesF(dstSurface.GetHandle, srcPen.GetHandle, ptrToFloatArray, numOfPoints)
+                    DrawLinesF_FromPtF = GDI_Plus.GDIPlus_DrawLinesF(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtFArray, numOfPoints)
                 End If
         End Select
     End If
@@ -234,6 +234,28 @@ Public Function DrawLineI(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DP
     End If
 End Function
 
+Friend Function DrawLineI_FromPtL(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByRef srcPoint1 As POINTLONG, ByRef srcPoint2 As POINTLONG) As Boolean
+    If VerifyDrawBackends(dstSurface, srcPen) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                DrawLineI_FromPtL = GDI_Plus.GDIPlus_DrawLineI(dstSurface.GetHandle, srcPen.GetHandle, srcPoint1.x, srcPoint1.y, srcPoint2.x, srcPoint2.y)
+        End Select
+    End If
+End Function
+
+Public Function DrawLinesI_FromPtL(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+    If VerifyDrawBackends(dstSurface, srcPen) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                If useCurveAlgorithm Then
+                    DrawLinesI_FromPtL = GDI_Plus.GDIPlus_DrawCurveI(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtLArray, numOfPoints, curvatureTension)
+                Else
+                    DrawLinesI_FromPtL = GDI_Plus.GDIPlus_DrawLinesI(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtLArray, numOfPoints)
+                End If
+        End Select
+    End If
+End Function
+
 Public Function DrawPath(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByRef srcPath As pd2DPath) As Boolean
     If VerifyDrawBackends(dstSurface, srcPen) Then
         Select Case dstSurface.GetSurfaceBackend
@@ -243,14 +265,27 @@ Public Function DrawPath(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPe
     End If
 End Function
 
-Public Function DrawPolygonF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToFloatArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+Public Function DrawPolygonF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
     If VerifyDrawBackends(dstSurface, srcPen) Then
         Select Case dstSurface.GetSurfaceBackend
             Case P2_DefaultBackend, P2_GDIPlusBackend
                 If useCurveAlgorithm Then
-                    DrawPolygonF = GDI_Plus.GDIPlus_DrawClosedCurveF(dstSurface.GetHandle, srcPen.GetHandle, ptrToFloatArray, numOfPoints, curvatureTension)
+                    DrawPolygonF = GDI_Plus.GDIPlus_DrawClosedCurveF(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtFArray, numOfPoints, curvatureTension)
                 Else
-                    DrawPolygonF = GDI_Plus.GDIPlus_DrawPolygonF(dstSurface.GetHandle, srcPen.GetHandle, ptrToFloatArray, numOfPoints)
+                    DrawPolygonF = GDI_Plus.GDIPlus_DrawPolygonF(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtFArray, numOfPoints)
+                End If
+        End Select
+    End If
+End Function
+
+Public Function DrawPolygonI(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+    If VerifyDrawBackends(dstSurface, srcPen) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                If useCurveAlgorithm Then
+                    DrawPolygonI = GDI_Plus.GDIPlus_DrawClosedCurveI(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtLArray, numOfPoints, curvatureTension)
+                Else
+                    DrawPolygonI = GDI_Plus.GDIPlus_DrawPolygonI(dstSurface.GetHandle, srcPen.GetHandle, ptrToPtLArray, numOfPoints)
                 End If
         End Select
     End If
