@@ -368,7 +368,10 @@ Private m_listOfPoints() As POINTFLOAT
 Private m_listOfSignsX() As Long, m_listOfSignsY() As Long
 
 Private Type AnimatedPolygon
+    PolygonBorderWidth As Single
     PolygonCenter As POINTFLOAT
+    PolygonColorBorder As Long
+    PolygonColorFill As Long
     PolygonCurvature As Single
     PolygonDirection As Single
     PolygonSides As Long
@@ -405,18 +408,7 @@ Private Sub cmdTest2AddPolygons_Click()
     
     Dim i As Long
     For i = oldNumOfPoints To m_NumOfPoints - 1
-        With m_ListOfPolygons(i)
-            .PolygonCenter.x = Rnd * picWidth
-            .PolygonCenter.y = Rnd * picHeight
-            .PolygonCurvature = Rnd
-            .PolygonDirection = Rnd * 360
-            .PolygonRadius = 10# + (Rnd * 50)
-            .PolygonRotation = (Rnd * 2 - 1#) / 10
-            .PolygonSides = 3 + (i Mod 6)
-            .PolygonSpeed = 0.001 + (Rnd / 5)
-            Set .PolygonTransform = New pd2DTransform
-            .PolygonTransform.Reset
-        End With
+        Test2RandomizePolygon m_ListOfPolygons(i), i
     Next i
 
 End Sub
@@ -554,18 +546,7 @@ Private Sub cmdTest_Click(Index As Integer)
             ReDim m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
             
             For i = 0 To m_NumOfPoints - 1
-                With m_ListOfPolygons(i)
-                    .PolygonCenter.x = Rnd * picWidth
-                    .PolygonCenter.y = Rnd * picHeight
-                    .PolygonCurvature = Rnd
-                    .PolygonDirection = Rnd * 360
-                    .PolygonRadius = 10# + (Rnd * 50)
-                    .PolygonRotation = (Rnd * 2 - 1#) / 10
-                    .PolygonSides = 3 + (i Mod 6)
-                    .PolygonSpeed = 0.001 + (Rnd / 5)
-                    Set .PolygonTransform = New pd2DTransform
-                    .PolygonTransform.Reset
-                End With
+                Test2RandomizePolygon m_ListOfPolygons(i), i
             Next i
             
             'Start the animation timer!
@@ -577,6 +558,24 @@ Private Sub cmdTest_Click(Index As Integer)
     
     End Select
 
+End Sub
+
+Private Sub Test2RandomizePolygon(ByRef dstPolygon As AnimatedPolygon, ByVal polygonIndex As Long)
+    With dstPolygon
+        .PolygonBorderWidth = 0.5 + (Rnd * 5)
+        .PolygonCenter.x = Rnd * m_BackBuffer.GetSurfaceWidth
+        .PolygonCenter.y = Rnd * m_BackBuffer.GetSurfaceHeight
+        .PolygonColorBorder = Rnd * 16777216
+        .PolygonColorFill = Rnd * 16777216
+        .PolygonCurvature = Rnd
+        .PolygonDirection = Rnd * 360
+        .PolygonRadius = 10# + (Rnd * 50)
+        .PolygonRotation = (Rnd * 2 - 1#) / 10
+        .PolygonSides = 3 + (polygonIndex Mod 6)
+        .PolygonSpeed = 0.001 + (Rnd / 5)
+        Set .PolygonTransform = New pd2DTransform
+        .PolygonTransform.Reset
+    End With
 End Sub
 
 'During animated demonstrations, this sample timer will perform animation tasks (like moving polygon points around).
@@ -669,32 +668,32 @@ Private Sub tmrSample_Timer()
                         .PolygonTransform.ApplyRotation .PolygonRotation, newCenter.x, newCenter.y
                         
                         'If the polygon is going to fly off an edge of the screen, adjust its angle by 90 degrees
-                        If (newCenter.x > picWidth) Then
-                            .PolygonTransform.ApplyTranslation picWidth - newCenter.x, 0#
+                        If (newCenter.x + .PolygonRadius > picWidth) Then
+                            .PolygonTransform.ApplyTranslation picWidth - (newCenter.x + .PolygonRadius), 0#
                             If (.PolygonDirection < 180) Then
                                 .PolygonDirection = .PolygonDirection + 90
                             Else
                                 .PolygonDirection = .PolygonDirection - 90
                             End If
                             .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.y > picHeight) Then
-                            .PolygonTransform.ApplyTranslation 0#, picHeight - newCenter.y
+                        ElseIf (newCenter.y + .PolygonRadius > picHeight) Then
+                            .PolygonTransform.ApplyTranslation 0#, picHeight - (newCenter.y + .PolygonRadius)
                             If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
                                 .PolygonDirection = .PolygonDirection - 90
                             Else
                                 .PolygonDirection = .PolygonDirection + 90
                             End If
                             .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.x < 0) Then
-                            .PolygonTransform.ApplyTranslation -1 * newCenter.x, 0#
+                        ElseIf (newCenter.x - .PolygonRadius < 0) Then
+                            .PolygonTransform.ApplyTranslation -1 * newCenter.x + .PolygonRadius, 0#
                             If (.PolygonDirection > 180) Then
                                 .PolygonDirection = .PolygonDirection + 90
                             Else
                                 .PolygonDirection = .PolygonDirection - 90
                             End If
                             .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.y < 0) Then
-                            .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y
+                        ElseIf (newCenter.y - .PolygonRadius < 0) Then
+                            .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y + .PolygonRadius
                             If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
                                 .PolygonDirection = .PolygonDirection + 90
                             Else
@@ -705,22 +704,7 @@ Private Sub tmrSample_Timer()
                     End With
                 Next i
                 
-                'Gradually cycle between colors
-                m_Test1ColorIncrement = m_Test1ColorIncrement + 0.34
-                If m_Test1ColorIncrement > 255 Then
-                    m_Test1ColorIncrement = 0
-                    m_Test1ColorPhase = m_Test1ColorPhase + 1
-                    If m_Test1ColorPhase > 5 Then m_Test1ColorPhase = 0
-                End If
-                
-                Select Case m_Test1ColorPhase
-                    Case 0: DrawDemo RGB(m_Test1ColorIncrement, 255 - m_Test1ColorIncrement, 255)
-                    Case 1: DrawDemo RGB(255, m_Test1ColorIncrement, 255 - m_Test1ColorIncrement)
-                    Case 2: DrawDemo RGB(255 - m_Test1ColorIncrement, 255, m_Test1ColorIncrement)
-                    Case 3: DrawDemo RGB(0, 255 - m_Test1ColorIncrement, m_Test1ColorIncrement)
-                    Case 4: DrawDemo RGB(255 - m_Test1ColorIncrement, m_Test1ColorIncrement, 0)
-                    Case 5: DrawDemo RGB(0, 0, 255 - m_Test1ColorIncrement)
-                End Select
+                DrawDemo
                 
                 'Every 16 animation steps, copy the full contents of the "back buffer" surface onto the
                 ' on-screen picture box.  (Because the picture box's .AutoRedraw property is set to FALSE,
@@ -743,7 +727,7 @@ Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
     ' 3) Painting onto our temporary surface.  (Because this surface just "wraps" the picture box, all of our
     '     paint operations will appear immediately on the screen.)
     
-    Dim cPen As pd2DPen, cPath As pd2DPath
+    Dim cBrush As pd2DBrush, cPen As pd2DPen, cPath As pd2DPath
     Set cPath = New pd2DPath
     
     Select Case m_ActiveTest
@@ -763,9 +747,8 @@ Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
             
         Case Test2_PolygonDemo
             
-            'Create a pen matching the color we were passed.  We're also going to make the pen semi-transparent,
-            ' and we're going to use "round" junctions where two lines meet (instead of mitered or beveled junctions).
-            Drawing2D.QuickCreateSolidPen cPen, 0.5, drawColor, 10#, P2_LJ_Round, P2_LC_Round
+            'Completely erase the back buffer.
+            m_BackBuffer.EraseSurfaceContents 0, 0
             
             Dim i As Long
             For i = 0 To m_NumOfPoints - 1
@@ -779,7 +762,12 @@ Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
                     'Apply this polygon's transformation
                     cPath.ApplyTransformation .PolygonTransform
                     
-                    'Draw this polygon
+                    'First, fill the polygon area using the polygon's random fill color at 50% opacity
+                    Drawing2D.QuickCreateSolidBrush cBrush, .PolygonColorFill, 50#
+                    m_Painter.FillPath m_BackBuffer, cBrush, cPath
+                    
+                    'Then, trace the polygon outline using the polygon's random border color at 100% opacity
+                    Drawing2D.QuickCreateSolidPen cPen, .PolygonBorderWidth, .PolygonColorBorder, 100#
                     m_Painter.DrawPath m_BackBuffer, cPen, cPath
                     
                 End With
