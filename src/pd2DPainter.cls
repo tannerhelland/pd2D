@@ -439,6 +439,19 @@ Public Function FillPath(ByRef dstSurface As pd2DSurface, ByRef srcBrush As pd2D
     End If
 End Function
 
+Public Function FillPolygonF_FromPtF(ByRef dstSurface As pd2DSurface, ByRef srcBrush As pd2DBrush, ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5, Optional ByVal fillMode As PD_2D_FillRule = P2_FR_Winding)
+    If VerifyFillBackends(dstSurface, srcBrush) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                If useCurveAlgorithm Then
+                    FillPolygonF_FromPtF = GDI_Plus.GDIPlus_FillClosedCurveF(dstSurface.GetHandle, srcBrush.GetHandle, ptrToPtFArray, numOfPoints, curvatureTension, fillMode)
+                Else
+                    FillPolygonF_FromPtF = GDI_Plus.GDIPlus_FillPolygonF(dstSurface.GetHandle, srcBrush.GetHandle, ptrToPtFArray, numOfPoints, fillMode)
+                End If
+        End Select
+    End If
+End Function
+
 Public Function FillRectangleF(ByRef dstSurface As pd2DSurface, ByRef srcBrush As pd2DBrush, ByVal rectLeft As Single, ByVal rectTop As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As Boolean
     If VerifyFillBackends(dstSurface, srcBrush) Then
         Select Case dstSurface.GetSurfaceBackend

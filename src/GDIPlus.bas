@@ -485,9 +485,13 @@ Private Declare Function GdipDrawPolygonI Lib "gdiplus" (ByVal hGraphics As Long
 Private Declare Function GdipDrawRectangle Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single) As GP_Result
 Private Declare Function GdipDrawRectangleI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hPen As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 
+Private Declare Function GdipFillClosedCurve2 Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long, ByVal curveTension As Single, ByVal fillMode As GP_FillMode) As GP_Result
+Private Declare Function GdipFillClosedCurve2I Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long, ByVal curveTension As Single, ByVal fillMode As GP_FillMode) As GP_Result
 Private Declare Function GdipFillEllipse Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single) As GP_Result
 Private Declare Function GdipFillEllipseI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 Private Declare Function GdipFillPath Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal hPath As Long) As GP_Result
+Private Declare Function GdipFillPolygon Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal ptrToPointFloats As Long, ByVal numOfPoints As Long, ByVal fillMode As GP_FillMode) As GP_Result
+Private Declare Function GdipFillPolygonI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal ptrToPointLongs As Long, ByVal numOfPoints As Long, ByVal fillMode As GP_FillMode) As GP_Result
 Private Declare Function GdipFillRectangle Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single) As GP_Result
 Private Declare Function GdipFillRectangleI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 
@@ -1516,16 +1520,22 @@ Public Function GDIPlus_DrawEllipseI(ByVal dstGraphics As Long, ByVal srcPen As 
     GDIPlus_DrawEllipseI = CBool(GdipDrawEllipseI(dstGraphics, srcPen, ellipseLeft, ellipseTop, ellipseWidth, ellipseHeight) = GP_OK)
 End Function
 
+Public Function GDIPlus_FillClosedCurveF(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5, Optional ByVal fillMode As GP_FillMode = GP_FM_Winding) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipFillClosedCurve2(dstGraphics, srcBrush, ptrToPtFArray, numOfPoints, curveTension, fillMode)
+    GDIPlus_FillClosedCurveF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_FillClosedCurveI(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long, Optional ByVal curveTension As Single = 0.5, Optional ByVal fillMode As GP_FillMode = GP_FM_Winding) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipFillClosedCurve2I(dstGraphics, srcBrush, ptrToPtLArray, numOfPoints, curveTension, fillMode)
+    GDIPlus_FillClosedCurveI = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
 Public Function GDIPlus_FillPath(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal srcPath As Long) As Boolean
     GDIPlus_FillPath = CBool(GdipFillPath(dstGraphics, srcBrush, srcPath) = GP_OK)
-End Function
-
-Public Function GDIPlus_FillRectF(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal rectLeft As Single, ByVal rectTop As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As Boolean
-    GDIPlus_FillRectF = CBool(GdipFillRectangle(dstGraphics, srcBrush, rectLeft, rectTop, rectWidth, rectHeight) = GP_OK)
-End Function
-
-Public Function GDIPlus_FillRectI(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal rectLeft As Long, ByVal rectTop As Long, ByVal rectWidth As Long, ByVal rectHeight As Long) As Boolean
-    GDIPlus_FillRectI = CBool(GdipFillRectangleI(dstGraphics, srcBrush, rectLeft, rectTop, rectWidth, rectHeight) = GP_OK)
 End Function
 
 Public Function GDIPlus_FillEllipseF(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ellipseLeft As Single, ByVal ellipseTop As Single, ByVal ellipseWidth As Single, ByVal ellipseHeight As Single) As Boolean
@@ -1534,6 +1544,28 @@ End Function
 
 Public Function GDIPlus_FillEllipseI(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ellipseLeft As Long, ByVal ellipseTop As Long, ByVal ellipseWidth As Long, ByVal ellipseHeight As Long) As Boolean
     GDIPlus_FillEllipseI = CBool(GdipFillEllipseI(dstGraphics, srcBrush, ellipseLeft, ellipseTop, ellipseWidth, ellipseHeight) = GP_OK)
+End Function
+
+Public Function GDIPlus_FillPolygonF(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ptrToPtFArray As Long, ByVal numOfPoints As Long, Optional ByVal fillMode As GP_FillMode = GP_FM_Winding) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipFillPolygon(dstGraphics, srcBrush, ptrToPtFArray, numOfPoints, fillMode)
+    GDIPlus_FillPolygonF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_FillPolygonI(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal ptrToPtLArray As Long, ByVal numOfPoints As Long, Optional ByVal fillMode As GP_FillMode = GP_FM_Winding) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipFillPolygonI(dstGraphics, srcBrush, ptrToPtLArray, numOfPoints, fillMode)
+    GDIPlus_FillPolygonI = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_FillRectF(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal rectLeft As Single, ByVal rectTop As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As Boolean
+    GDIPlus_FillRectF = CBool(GdipFillRectangle(dstGraphics, srcBrush, rectLeft, rectTop, rectWidth, rectHeight) = GP_OK)
+End Function
+
+Public Function GDIPlus_FillRectI(ByVal dstGraphics As Long, ByVal srcBrush As Long, ByVal rectLeft As Long, ByVal rectTop As Long, ByVal rectWidth As Long, ByVal rectHeight As Long) As Boolean
+    GDIPlus_FillRectI = CBool(GdipFillRectangleI(dstGraphics, srcBrush, rectLeft, rectTop, rectWidth, rectHeight) = GP_OK)
 End Function
 
 Public Function GDIPlus_GraphicsGetClipRegion(ByVal srcGraphics As Long) As Long
