@@ -3,11 +3,11 @@ Attribute VB_Name = "GDI"
 'GDI interop manager
 'Copyright 2001-2016 by Tanner Helland
 'Created: 03/April/2001
-'Last updated: 20/June/16
-'Last update: split the GDI parts of the massive Drawing module into this dedicated module
+'Last updated: 28/June/16
+'Last update: continued clean-up of PD-specific code
 '
-'Like any Windows application, PD frequently interacts with GDI.  This module tries to manage the messiest bits
-' of interop code.
+'To improve performance, pd2D falls back to GDI in cases where GDI behavior is functionally identical.  This module
+' manages all GDI-specific code paths.
 '
 'All source code in this file is licensed under a modified BSD license. This means you may use the code in your own
 ' projects IF you provide attribution. For more information, please visit http://photodemon.org/about/license/
@@ -69,7 +69,7 @@ Public Function GetBitmapHeaderFromDC(ByVal srcDC As Long) As GDI_Bitmap
     Dim hBitmap As Long
     hBitmap = GetCurrentObject(srcDC, GDI_OBJ_BITMAP)
     If (hBitmap <> 0) Then
-        If (GetObject(hBitmap, Len(GetBitmapHeaderFromDC), VarPtr(GetBitmapHeaderFromDC)) = 0) Then
+        If (GetObject(hBitmap, LenB(GetBitmapHeaderFromDC), VarPtr(GetBitmapHeaderFromDC)) = 0) Then
             InternalGDIError "GetObject failed on source hDC", , Err.LastDllError
         End If
     Else

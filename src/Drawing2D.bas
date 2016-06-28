@@ -104,11 +104,12 @@ Public Enum PD_2D_SURFACE_SETTINGS
     P2_SurfaceRenderingOriginX = 2
     P2_SurfaceRenderingOriginY = 3
     P2_SurfaceBlendUsingSRGBGamma = 4
-    [_P2_NumOfSurfaceSettings] = 5
+    P2_SurfaceResizeQuality = 5
+    [_P2_NumOfSurfaceSettings] = 6
 End Enum
 
 #If False Then
-    Private Const P2_SurfaceAntialiasing = 0, P2_SurfacePixelOffset = 1, P2_SurfaceRenderingOriginX = 2, P2_SurfaceRenderingOriginY = 3, P2_SurfaceBlendUsingSRGBGamma = 4, P2_NumOfSurfaceSettings = 5
+    Private Const P2_SurfaceAntialiasing = 0, P2_SurfacePixelOffset = 1, P2_SurfaceRenderingOriginX = 2, P2_SurfaceRenderingOriginY = 3, P2_SurfaceBlendUsingSRGBGamma = 4, P2_NumOfSurfaceSettings = 5, P2_SurfaceResizeQuality = 6
 #End If
 
 'The whole point of Drawing2D is to avoid backend-specific parameters.  As such, we necessarily wrap a number of
@@ -301,6 +302,16 @@ End Enum
 
 #If False Then
     Private Const P2_PO_Normal = 0, P2_PO_Half = 1
+#End If
+
+Public Enum PD_2D_ResizeQuality
+    P2_RQ_Fast = 0
+    P2_RQ_Bilinear = 1
+    P2_RQ_Bicubic = 2
+End Enum
+
+#If False Then
+    Private Const P2_RQ_Fast = 0, P2_RQ_Bilinear = 1, P2_RQ_Bicubic = 2
 #End If
 
 'Surfaces come in a few different varieties.  Note that some actions may not be available for certain surface types.

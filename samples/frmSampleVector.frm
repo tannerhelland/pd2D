@@ -56,7 +56,7 @@ Begin VB.Form frmSample
       TabIndex        =   11
       Top             =   180
       Value           =   1  'Checked
-      Width           =   3255
+      Width           =   2175
    End
    Begin VB.CommandButton cmdErase 
       Cancel          =   -1  'True
@@ -112,7 +112,7 @@ Begin VB.Form frmSample
    Begin VB.PictureBox picOutput 
       Appearance      =   0  'Flat
       BackColor       =   &H00000000&
-      DrawStyle       =   5  'Transparent
+      ClipControls    =   0   'False
       BeginProperty Font 
          Name            =   "Tahoma"
          Size            =   9.75
@@ -336,8 +336,9 @@ Private m_Painter As pd2DPainter
 'To prevent flickering, we're not going to draw directly onto the main form's picture box.  Instead, we're going to
 ' draw to an invisible "in-memory" surface.  After our drawing is complete, we'll copy the entire contents of the
 ' in-memory image to the screen in one fell swoop.  This approach is called "double-buffering".
-Private m_BackBuffer As pd2DSurface         'The in-memory surface
-Private m_TargetPictureBox As pd2DSurface   'The on-screen surface
+'
+'This "m_BackBuffer" surface is the in-memory image we'll be drawing to.
+Private m_BackBuffer As pd2DSurface
 
 'As a convenience, let's give our various test demonstrations some readable names
 Private Enum PD_2D_Tests
@@ -358,6 +359,7 @@ Private m_ActiveTest As PD_2D_Tests
 ' You can change this constants to modify the animations.
 Private Const DEFAULT_ANIMATION_POINTS As Long = 6
 Private m_NumOfPoints As Long
+
 Private m_Test1UseLines As Boolean, m_Test1CloseShape As Boolean
 Private m_Test1ColorPhase As Long, m_Test1ColorIncrement As Single
 Private m_Test2UseCurvature As Boolean
@@ -396,10 +398,6 @@ End Sub
 'Add more polygons to the demonstration
 Private Sub cmdTest2AddPolygons_Click()
     
-    Dim picWidth As Single, picHeight As Single
-    picWidth = m_TargetPictureBox.GetSurfaceWidth
-    picHeight = m_TargetPictureBox.GetSurfaceHeight
-    
     Dim oldNumOfPoints As Long
     oldNumOfPoints = m_NumOfPoints
     
@@ -423,6 +421,11 @@ Private Sub Form_Load()
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     
+    'Next, we want the drawing library to relay any relevant debug information to the immediate window.
+    ' (You can set this value to whatever you want in your own projects; performance may see a tiny improvement if
+    '  debug mode is turned off.)
+    Drawing2D.SetLibraryDebugMode True
+    
     'Next, we need a painter instance.  Most projects will only need one painter per project.  Just like real-life,
     ' a painter can work with any number of different pens, brushes, and surfaces.
     Drawing2D.QuickCreatePainter m_Painter
@@ -436,18 +439,14 @@ Private Sub Form_Load()
     ' but just to be safe, but we can perform a failsafe check now.
     picOutput.ScaleMode = vbPixels
     
-    'Finally, we're going to create a second surface.  This surface is wrapped around the on-screen element that's
-    ' going to display our finished painting (in this case, the big black picture box on the sample form).
-    Drawing2D.QuickCreateSurfaceFromDC m_TargetPictureBox, picOutput.hDC, True
-    
     'Normally, that's all you need to do inside Form_Load!
     
-    'For this demo project, let's perform two other quick tasks:
+    'For this demo project, let's perform a few other quick tasks:
     ' First, let's reset VB's random number engine.  (Some of our animated demos rely on random numbers, and they'll
     ' always look the same if we don't do re-seed the random number generator.)
     Randomize Timer
     
-    'Let's also note that there are not currently any active tests running.
+    'Let's also set some default module-level variables
     m_ActiveTest = NoTestRunning
     
 End Sub
@@ -487,7 +486,7 @@ End Sub
 ' a convenient function for this, called "EraseSurfaceContents".
 Private Sub EraseAllBuffers()
     m_BackBuffer.EraseSurfaceContents vbBlack, 0#
-    m_TargetPictureBox.EraseSurfaceContents vbBlack, 0#
+    picOutput.Cls
 End Sub
 
 'The user can also click the on-screen "erase" button to erase whenever they want
@@ -502,11 +501,10 @@ Private Sub cmdTest_Click(Index As Integer)
     
     'When we initialize various animation properties, we're going to randomize things like coordinates
     ' across the surface of the target picture box.  As such, we'll be accessing the picture box's
-    ' coordinates many times.  Cache those values locally.  (Note that we can pull the dimensions from
-    ' the picture box itself, or from the surface wrapped around it - the two are automatically synched.)
+    ' coordinates many times.  Cache those values locally.
     Dim picWidth As Single, picHeight As Single
-    picWidth = m_TargetPictureBox.GetSurfaceWidth
-    picHeight = m_TargetPictureBox.GetSurfaceHeight
+    picWidth = picOutput.ScaleWidth
+    picHeight = picOutput.ScaleHeight
     
     'Some tests use the "tmrSample" timer on the main window.  We mark the active test here, before we
     ' start the timer, so the timer knows which animation actions to perform.
@@ -570,9 +568,9 @@ Private Sub Test2RandomizePolygon(ByRef dstPolygon As AnimatedPolygon, ByVal pol
         .PolygonCurvature = Rnd
         .PolygonDirection = Rnd * 360
         .PolygonRadius = 10# + (Rnd * 50)
-        .PolygonRotation = (Rnd * 2 - 1#) / 10
+        .PolygonRotation = (Rnd * 2 - 1#) * 5
         .PolygonSides = 3 + (polygonIndex Mod 6)
-        .PolygonSpeed = 0.001 + (Rnd / 5)
+        .PolygonSpeed = 0.001 + (Rnd * 5)
         Set .PolygonTransform = New pd2DTransform
         .PolygonTransform.Reset
     End With
@@ -587,6 +585,12 @@ Private Sub tmrSample_Timer()
     Dim picWidth As Single, picHeight As Single
     picWidth = picOutput.ScaleWidth
     picHeight = picOutput.ScaleHeight
+    
+    'Wrap a temporary pd2D surface around the output picture box.  We will release this surface at the end of this sub,
+    ' because the underlying hDC is not owned by us - it's owned by VB, so we shouldn't monopolize it any longer than
+    ' we absolutely have to.
+    Dim targetPictureBox As pd2DSurface
+    Drawing2D.QuickCreateSurfaceFromDC targetPictureBox, picOutput.hDC, False
     
     Dim i As Integer, animationSteps As Long
     
@@ -632,9 +636,9 @@ Private Sub tmrSample_Timer()
                 
                 'Every 16 animation steps, copy the full contents of the "back buffer" surface onto the
                 ' on-screen picture box.  (Because the picture box's .AutoRedraw property is set to FALSE,
-                ' we do not need to forcibly refresh the picture box.)
-                If (animationSteps And 15) = 0 Then m_Painter.CopyImageI m_TargetPictureBox, 0, 0, m_BackBuffer
-             
+                ' we do not need to forcibly refresh the picture box after copying the image data over.)
+                If (animationSteps And 15) = 0 Then m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+                
             Next animationSteps
         
         Case Test2_PolygonDemo
@@ -642,81 +646,71 @@ Private Sub tmrSample_Timer()
             'To move each polygon, we're going to use a "transform" object.  Transform objects "add together"
             ' transformations over time, which allows you to apply very complex motion with very little code.
             Dim newCenter As POINTFLOAT, oldCenter As POINTFLOAT, collisionAngle As Double
-            
-            'Because animation steps are so fast, lets perform a whole bunch of them inside a timer event.
-            ' This results in a much smoother effect than waiting for VB's timer object (which can be very erratic).
-            For animationSteps = 0 To 127
-                
-                'Prepare an initial set of points for the spline animation
-                'm_NumOfPoints = DEFAULT_ANIMATION_POINTS
-                'ReDim m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
-                
-                For i = 0 To m_NumOfPoints - 1
-                    
-                    With m_ListOfPolygons(i)
-                    
-                        'Update this polygon's running transformation
-                        oldCenter = .PolygonCenter
-                        .PolygonTransform.ApplyTranslation_Polar .PolygonDirection, .PolygonSpeed, True
-                        
-                        'Find the current (x, y) centerpoint of the polygon, with all translations applied
-                        newCenter = .PolygonCenter
-                        .PolygonTransform.ApplyTransformToPointF newCenter
-                        
-                        'Use the new centerpoint to rotate the polygon around its center according to its
-                        ' randomized "rotation" speed
-                        .PolygonTransform.ApplyRotation .PolygonRotation, newCenter.x, newCenter.y
-                        
-                        'If the polygon is going to fly off an edge of the screen, adjust its angle by 90 degrees
-                        If (newCenter.x + .PolygonRadius > picWidth) Then
-                            .PolygonTransform.ApplyTranslation picWidth - (newCenter.x + .PolygonRadius), 0#
-                            If (.PolygonDirection < 180) Then
-                                .PolygonDirection = .PolygonDirection + 90
-                            Else
-                                .PolygonDirection = .PolygonDirection - 90
-                            End If
-                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.y + .PolygonRadius > picHeight) Then
-                            .PolygonTransform.ApplyTranslation 0#, picHeight - (newCenter.y + .PolygonRadius)
-                            If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
-                                .PolygonDirection = .PolygonDirection - 90
-                            Else
-                                .PolygonDirection = .PolygonDirection + 90
-                            End If
-                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.x - .PolygonRadius < 0) Then
-                            .PolygonTransform.ApplyTranslation -1 * newCenter.x + .PolygonRadius, 0#
-                            If (.PolygonDirection > 180) Then
-                                .PolygonDirection = .PolygonDirection + 90
-                            Else
-                                .PolygonDirection = .PolygonDirection - 90
-                            End If
-                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        ElseIf (newCenter.y - .PolygonRadius < 0) Then
-                            .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y + .PolygonRadius
-                            If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
-                                .PolygonDirection = .PolygonDirection + 90
-                            Else
-                                .PolygonDirection = .PolygonDirection - 90
-                            End If
-                            .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
-                        End If
-                    End With
-                Next i
-                
-                DrawDemo
-                
-                'Every 16 animation steps, copy the full contents of the "back buffer" surface onto the
-                ' on-screen picture box.  (Because the picture box's .AutoRedraw property is set to FALSE,
-                ' we do not need to forcibly refresh the picture box.)
-                If (animationSteps And 15) = 0 Then m_Painter.CopyImageI m_TargetPictureBox, 0, 0, m_BackBuffer
-             
-            Next animationSteps
         
+            For i = 0 To m_NumOfPoints - 1
+                
+                With m_ListOfPolygons(i)
+                
+                    'Update this polygon's running transformation
+                    oldCenter = .PolygonCenter
+                    .PolygonTransform.ApplyTranslation_Polar .PolygonDirection, .PolygonSpeed, True
+                    
+                    'Find the current (x, y) centerpoint of the polygon, with all translations applied
+                    newCenter = .PolygonCenter
+                    .PolygonTransform.ApplyTransformToPointF newCenter
+                    
+                    'Use the new centerpoint to rotate the polygon around its center according to its
+                    ' randomized "rotation" speed
+                    .PolygonTransform.ApplyRotation .PolygonRotation, newCenter.x, newCenter.y
+                    
+                    'If the polygon is going to fly off an edge of the screen, adjust its angle by 90 degrees
+                    If (newCenter.x + .PolygonRadius > picWidth) Then
+                        .PolygonTransform.ApplyTranslation picWidth - (newCenter.x + .PolygonRadius), 0#
+                        If (.PolygonDirection < 180) Then
+                            .PolygonDirection = .PolygonDirection + 90
+                        Else
+                            .PolygonDirection = .PolygonDirection - 90
+                        End If
+                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                    ElseIf (newCenter.y + .PolygonRadius > picHeight) Then
+                        .PolygonTransform.ApplyTranslation 0#, picHeight - (newCenter.y + .PolygonRadius)
+                        If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
+                            .PolygonDirection = .PolygonDirection - 90
+                        Else
+                            .PolygonDirection = .PolygonDirection + 90
+                        End If
+                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                    ElseIf (newCenter.x - .PolygonRadius < 0) Then
+                        .PolygonTransform.ApplyTranslation -1 * newCenter.x + .PolygonRadius, 0#
+                        If (.PolygonDirection > 180) Then
+                            .PolygonDirection = .PolygonDirection + 90
+                        Else
+                            .PolygonDirection = .PolygonDirection - 90
+                        End If
+                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                    ElseIf (newCenter.y - .PolygonRadius < 0) Then
+                        .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y + .PolygonRadius
+                        If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
+                            .PolygonDirection = .PolygonDirection + 90
+                        Else
+                            .PolygonDirection = .PolygonDirection - 90
+                        End If
+                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                    End If
+                End With
+            Next i
+            
+            DrawDemo
+            
+            'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
+            ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
+            ' refresh the picture box after performing the copy operation.)
+            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+            
         Case Else
     
     End Select
-
+    
 End Sub
 
 Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)

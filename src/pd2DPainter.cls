@@ -15,8 +15,8 @@ Attribute VB_Exposed = False
 'PhotoDemon 2D Painting class (interface for using pd2dBrush and pd2dPen on pd2dSurface objects)
 'Copyright 2012-2016 by Tanner Helland
 'Created: 01/September/12
-'Last updated: 16/May/16
-'Last update: continue migration of paint operations out of GDI+ module and into this class
+'Last updated: 28/June/16
+'Last update: implement additional surface-to-surface rendering functions
 '
 'All source code in this file is licensed under a modified BSD license. This means you may use the code in your own
 ' projects IF you provide attribution. For more information, please visit http://photodemon.org/about/license/
@@ -77,14 +77,40 @@ Private Function VerifyFillBackends(ByRef dstSurface As pd2DSurface, ByRef srcBr
     
 End Function
 
-'Copy functions.  Copying an image onto a destination surface does *not* perform any blending.  It performs a wholesale
-' replacement of the destination bytes with the source bytes.  (Note that there is no corresponding "CopyImageF",
-' because subpixel positioning requires some measure of blending.)
-Public Function CopyImageI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByRef srcSurface As pd2DSurface) As Boolean
+'Copy functions.  Copying one surface onto another surface does *not* perform any blending.  It performs a wholesale
+' replacement of the destination bytes with the source bytes.
+Public Function CopySurfaceI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByRef srcSurface As pd2DSurface) As Boolean
     Dim srcWidth As Long, srcHeight As Long
     srcWidth = srcSurface.GetSurfaceWidth
     srcHeight = srcSurface.GetSurfaceHeight
-    CopyImageI = GDI.BitBltWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, vbSrcCopy)
+    CopySurfaceI = GDI.BitBltWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, vbSrcCopy)
+End Function
+
+'Whenever floating-point coordinates are used, we must use GDI+ for rendering.  This is always slower than GDI.
+Public Function CopySurfaceF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByRef srcSurface As pd2DSurface) As Boolean
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceCopy
+    CopySurfaceF = GDI_Plus.GDIPlus_DrawImageF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY)
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceOver
+End Function
+
+'You might think we could just wrap StretchBlt here, but StretchBlt is inconsistent in its handling of alpha channels.
+' GDI+ is actually pretty comparable speed-wise in nearest-neighbor mode, so this isn't a huge penalty.
+Public Function CopySurfaceResizedI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByRef srcSurface As pd2DSurface) As Boolean
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceCopy
+    CopySurfaceResizedI = GDI_Plus.GDIPlus_DrawImageRectI(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight)
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceOver
+End Function
+
+Public Function CopySurfaceResizedF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef srcSurface As pd2DSurface) As Boolean
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceCopy
+    CopySurfaceResizedF = GDI_Plus.GDIPlus_DrawImageRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight)
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceOver
+End Function
+
+Public Function CopySurfaceResizedCroppedF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef srcSurface As pd2DSurface, ByVal srcX As Single, ByVal srcY As Single, ByVal srcWidth As Single, ByVal srcHeight As Single) As Boolean
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceCopy
+    CopySurfaceResizedCroppedF = GDI_Plus.GDIPlus_DrawImageRectRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, srcX, srcY, srcWidth, srcHeight)
+    GDI_Plus.GDIPlus_GraphicsSetCompositingMode dstSurface.GetHandle, GP_CM_SourceOver
 End Function
 
 'Draw functions.  Given a target pd2dSurface object and a source pd2dPen, apply the pen to the surface in said shape.
@@ -148,24 +174,26 @@ Friend Function DrawEllipseI_FromRectL(ByRef dstSurface As pd2DSurface, ByRef sr
     DrawEllipseI_FromRectL = Me.DrawEllipseI(dstSurface, srcPen, srcRect.Left, srcRect.Top, srcRect.Right - srcRect.Left, srcRect.Bottom - srcRect.Top)
 End Function
 
-'Drawing images is significantly more convoluted than drawing shapes, because GDI+ Graphics objects do not support
-' direct access to bits (which is forgivable, because a Graphics object may not have a raster object selected into it).
-' Instead, we must generate - on-the-fly - a GDI+ Image object as our "source image".
+'Drawing entire surfaces onto each other is significantly more convoluted than drawing shapes, because GDI+ Graphics
+' objects do not support direct access to bits (which is actually forgivable, because a Graphics object may not have
+' a raster object selected into it).  Instead, we must generate - on-the-fly - a GDI+ Image object as our
+' "source image".  The surface class helps with this.
 '
-'Also, wherever possible, we try to bypass GDI+ and just use GDI, which is totally sufficient for 24-bpp targets.
-Public Function DrawImageI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
+'Also, note that wherever possible we try to bypass GDI+ and just use GDI, which is totally sufficient for 24-bpp
+' targets and/or integer-only coordinates.
+Public Function DrawSurfaceI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
     
     'Because this function doesn't require stretching, we can drop back to AlphaBlend for improved performance.
     ' (This is only possible because pd2D operates in the premultiplied alpha space; if it didn't, we'd be forced
-    ' to use slow GDI+ calls everywhere.)
+    ' to use slower GDI+ calls everywhere.)
     Dim srcWidth As Long, srcHeight As Long
     srcWidth = srcSurface.GetSurfaceWidth
     srcHeight = srcSurface.GetSurfaceHeight
     
     If (srcSurface.GetSurfaceAlphaSupport Or (customOpacity <> 100)) Then
-        DrawImageI = AlphaBlendWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, srcWidth, srcHeight, srcSurface.GetSurfaceAlphaSupport, customOpacity * 2.55)
+        DrawSurfaceI = AlphaBlendWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, srcWidth, srcHeight, srcSurface.GetSurfaceAlphaSupport, customOpacity * 2.55)
     Else
-        DrawImageI = GDI.BitBltWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, vbSrcCopy)
+        DrawSurfaceI = GDI.BitBltWrapper(dstSurface.GetSurfaceDC, dstX, dstY, srcWidth, srcHeight, srcSurface.GetSurfaceDC, 0, 0, vbSrcCopy)
     End If
     
 End Function
@@ -185,12 +213,45 @@ Private Function AlphaBlendWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByV
     Else
         
         ' (My memory is fuzzy after so many years, but I seem to recall old versions of Windows sometimes failing
-        '  to AlphaBlend if the alpha value was exactly 255 - as a failsafe, let's use 254 as necessary.)
+        '  to AlphaBlend if the alpha value was exactly 255 - as a failsafe, let's use 254 as necessary.
+        '  TODO: test this on XP, Win 7, Win 10 to confirm behavior.)
         If blendOpacity = 255 Then blendOpacity = 254
         abParams = (blendOpacity * &H10000)
     End If
     
     AlphaBlend hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, abParams
+    
+End Function
+
+'Whenever floating-point coordinates are used, we must use GDI+ for rendering.  This is always slower than GDI.
+Public Function DrawSurfaceF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
+    
+    Dim srcWidth As Long, srcHeight As Long
+    srcWidth = srcSurface.GetSurfaceWidth
+    srcHeight = srcSurface.GetSurfaceHeight
+    
+    'Custom opacity requires a totally different (and far more complicated) GDI+ function
+    If (customOpacity <> 100#) Then
+        DrawSurfaceF = GDI_Plus.GDIPlus_DrawImageRectRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, srcWidth, srcHeight, 0#, 0#, srcWidth, srcHeight, customOpacity * 0.01)
+    Else
+        DrawSurfaceF = GDI_Plus.GDIPlus_DrawImageF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY)
+    End If
+    
+End Function
+
+'Whenever floating-point coordinates are used, we must use GDI+ for rendering.  This is always slower than GDI.
+Public Function DrawSurfaceResizedF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
+    
+    Dim srcWidth As Long, srcHeight As Long
+    srcWidth = srcSurface.GetSurfaceWidth
+    srcHeight = srcSurface.GetSurfaceHeight
+    
+    'Custom opacity requires a totally different (and far more complicated) GDI+ function
+    If (customOpacity <> 100#) Then
+        DrawSurfaceResizedF = GDI_Plus.GDIPlus_DrawImageRectRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, 0#, 0#, srcWidth, srcHeight, customOpacity * 0.01)
+    Else
+        DrawSurfaceResizedF = GDI_Plus.GDIPlus_DrawImageRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight)
+    End If
     
 End Function
 
