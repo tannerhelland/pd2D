@@ -69,7 +69,7 @@ Begin VB.Form frmSample
    End
    Begin VB.CheckBox chkTest1Complete 
       BackColor       =   &H80000005&
-      Caption         =   "automatically complete the shape"
+      Caption         =   "don't fill the shape"
       Height          =   255
       Left            =   600
       TabIndex        =   8
@@ -191,7 +191,7 @@ Begin VB.Form frmSample
    End
    Begin VB.Label lblTitle 
       BackStyle       =   0  'Transparent
-      Caption         =   "curve demo (by Olaf Schmidt)"
+      Caption         =   "animated waveform"
       BeginProperty Font 
          Name            =   "Segoe UI"
          Size            =   12
@@ -315,10 +315,11 @@ Attribute VB_Exposed = False
 '   as they can save you some trouble over manually instantiating pens and setting individual properties one line
 '   at a time.
 '
-'I think that's everything!  Many thanks to other talented VB coders whose source code inspired this sample project.
+'I think that's everything!  Many thanks to other talented coders whose source code inspired this sample project.
 ' Specifically, thank you to:
 '
-' - Olaf Schmidt for the "polygon curves" sample code (http://www.vbforums.com/showthread.php?727765-BSpline-based-quot-Bezier-Art-quot)
+' - Stefan Ceriu for the original inspiration for the "animated waveform" demo (https://github.com/stefanceriu/SCSiriWaveformView)
+'   Stefan's original code (MIT-licensed) is available at the link.
 '
 'All source code in this file is licensed under a modified BSD license.  This means you may use the code in your own
 ' projects IF you provide attribution.  For more information, please visit http://photodemon.org/about/license/
@@ -356,18 +357,25 @@ End Enum
 Private m_ActiveTest As PD_2D_Tests
 
 'Some of the sample animations in this project use a collection of points and other mathematical data.
-' You can change this constants to modify the animations.
-Private Const DEFAULT_ANIMATION_POINTS As Long = 6
+' You can change these constants to modify the animations.
+Private Const DEFAULT_ANIMATION_SHAPES As Long = 20
 Private m_NumOfPoints As Long
 
-Private m_Test1UseLines As Boolean, m_Test1CloseShape As Boolean
-Private m_Test1ColorPhase As Long, m_Test1ColorIncrement As Single
+Private Const WAVE_FREQUENCY As Single = 2#
+Private Const NUMBER_OF_WAVES As Long = 5
+Private Const WAVE_PHASE_SHIFT As Single = -0.15
+Private Const WAVE_DENSITY As Single = 25#
+Private Const WAVE_PRIMARY_PEN_WIDTH As Single = 2.5
+Private Const WAVE_SECONDARY_PEN_WIDTH As Single = 0.5
+Private Const WAVE_AMP_ADJUSTMENT As Single = 0.005
+Private m_WavePhase As Single, m_WaveAmplitude As Single, m_TargetAmplitude As Single
+
+Private m_Test1UseLines As Boolean, m_Test1DontCloseShape As Boolean
 Private m_Test2UseCurvature As Boolean
 
 'pd2D supports subpixel positioning, which means that pixels no longer need to be defined as integers.
 ' The POINTFLOAT type is very simple: it simply includes an x and y coordinate, both defined as Singles.
 Private m_listOfPoints() As POINTFLOAT
-Private m_listOfSignsX() As Long, m_listOfSignsY() As Long
 
 Private Type AnimatedPolygon
     PolygonBorderWidth As Single
@@ -384,32 +392,6 @@ Private Type AnimatedPolygon
 End Type
 
 Private m_ListOfPolygons() As AnimatedPolygon
-
-Private Sub chkTest2Curvature_Click()
-    EraseAllBuffers
-    m_Test2UseCurvature = CBool(chkTest2Curvature.Value = vbChecked)
-End Sub
-
-Private Sub chkAntialiasing_Click()
-    EraseAllBuffers
-    If CBool(chkAntialiasing.Value = vbChecked) Then m_BackBuffer.SetSurfaceAntialiasing P2_AA_HighQuality Else m_BackBuffer.SetSurfaceAntialiasing P2_AA_None
-End Sub
-
-'Add more polygons to the demonstration
-Private Sub cmdTest2AddPolygons_Click()
-    
-    Dim oldNumOfPoints As Long
-    oldNumOfPoints = m_NumOfPoints
-    
-    m_NumOfPoints = m_NumOfPoints + 5
-    ReDim Preserve m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
-    
-    Dim i As Long
-    For i = oldNumOfPoints To m_NumOfPoints - 1
-        Test2RandomizePolygon m_ListOfPolygons(i), i
-    Next i
-
-End Sub
 
 Private Sub Form_Load()
 
@@ -512,27 +494,12 @@ Private Sub cmdTest_Click(Index As Integer)
     
     Select Case Index
     
-        'The first demo is an animated polygon/curve demo, originally shared by Olaf Schmidt at this link:
-        ' http://www.vbforums.com/showthread.php?727765-BSpline-based-quot-Bezier-Art-quot
-        ' Thank you to Olaf for sharing this pretty "screensaver"-type animation.
+        'The first demo is a basic waveform demo, inspired by an MIT-licensed project originally shared on GitHub:
+        ' https://github.com/stefanceriu/SCSiriWaveformView
+        ' Thank you to Stefan Ceriu for the original inspiration for this sample animation
         Case Test1_SplineDemo
-        
-            'Prepare an initial set of points for the spline animation
-            m_NumOfPoints = DEFAULT_ANIMATION_POINTS
-            ReDim m_listOfPoints(0 To m_NumOfPoints - 1) As POINTFLOAT
-            ReDim m_listOfSignsX(0 To m_NumOfPoints - 1) As Long: ReDim m_listOfSignsY(0 To m_NumOfPoints - 1) As Long
             
-            'These points are randomly scattered across the picture box's available area.  Note that we can read
-            ' the picture box's property directly from the surface object wrapped around it.
-            For i = 0 To m_NumOfPoints - 1
-                m_listOfPoints(i).x = Rnd * picWidth
-                m_listOfPoints(i).y = Rnd * picHeight
-                
-                'This animation also stores a "sign", either +1 or -1, for each point in the polygon.  When a
-                ' given point hits the edge of the picture box, we'll reverse its direction.
-                m_listOfSignsX(i) = IIf(i Mod 2, 1, -1)
-                m_listOfSignsY(i) = IIf(i Mod 2, -1, 1)
-            Next i
+            m_TargetAmplitude = 1#
             
             'Start the animation timer!
             tmrSample.Enabled = True
@@ -540,7 +507,7 @@ Private Sub cmdTest_Click(Index As Integer)
         Case Test2_PolygonDemo
             
             'Prepare an initial set of points for the spline animation
-            m_NumOfPoints = DEFAULT_ANIMATION_POINTS
+            m_NumOfPoints = DEFAULT_ANIMATION_SHAPES
             ReDim m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
             
             For i = 0 To m_NumOfPoints - 1
@@ -592,55 +559,132 @@ Private Sub tmrSample_Timer()
     Dim targetPictureBox As pd2DSurface
     Drawing2D.QuickCreateSurfaceFromDC targetPictureBox, picOutput.hDC, False
     
-    Dim i As Integer, animationSteps As Long
+    Dim i As Long
+    Dim cPen As pd2DPen, cBrush As pd2DBrush
     
     Select Case m_ActiveTest
         
         'Olaf Schimdt's "animated polygon/curve" screensaver
         Case Test1_SplineDemo
             
-            'Because animation steps are so fast, lets perform a whole bunch of them inside a timer event.
-            ' This results in a much smoother effect than waiting for VB's timer object (which can be very erratic).
-            For animationSteps = 0 To 127
+            'Calculate some intermediary drawing values
+            Dim halfHeight As Single, halfWidth As Single
+            halfHeight = picHeight * 0.5
+            halfWidth = picWidth * 0.5
+            
+            Dim maxAmplitude As Single
+            maxAmplitude = halfHeight - 4#
+            
+            Dim drawProgress As Single, normedAmplitude As Single, multiplier As Single
+            Dim drawOpacity As Single, drawScaling As Single, penWidth As Single, penColor As Long
+            Dim x As Single, y As Single
+            
+            'Increment our current phase
+            m_WavePhase = m_WavePhase + WAVE_PHASE_SHIFT
+            
+            'Move toward a target amplitude (either 1.0 or -1.0), and when we reach the target, reverse direction
+            If (m_WaveAmplitude < m_TargetAmplitude) Then
+                m_WaveAmplitude = m_WaveAmplitude + WAVE_AMP_ADJUSTMENT
+            Else
+                m_WaveAmplitude = m_WaveAmplitude - WAVE_AMP_ADJUSTMENT
+            End If
+            
+            If (Abs(m_WaveAmplitude - m_TargetAmplitude) < WAVE_AMP_ADJUSTMENT) Then m_TargetAmplitude = -1 * m_TargetAmplitude
+            
+            'Prepare a list of points.  These points will describe our waveform
+            m_NumOfPoints = (picWidth + WAVE_DENSITY) / WAVE_DENSITY + 1
+            ReDim m_listOfPoints(0 To m_NumOfPoints) As POINTFLOAT
+            
+            Dim curPoint As Long
+            
+            'Erase any existing drawing on the backbuffer
+            m_BackBuffer.EraseSurfaceContents 0, 0
+            
+            'We're now going to draw a series of basic sine waves.  Each wave will have equal phases, but their opacity
+            ' and amplitude will reduce incrementally.
+            For i = 0 To NUMBER_OF_WAVES
                 
-                'Iterate through each point in our animated polygon and slightly move its position
-                For i = 0 To m_NumOfPoints - 1
+                '"Progress" is a floating-point value that we use to modify a number of wave values.  Remember that only
+                ' the first wave is drawn at maximum amplitude and opacity; each successive one is made smaller and more translucent.
+                drawProgress = 1# - (i / NUMBER_OF_WAVES)
+                normedAmplitude = (1.5 * drawProgress - 0.5) * m_WaveAmplitude
+                multiplier = (drawProgress / 3# * 2#) + (1# / 3#)
+                If multiplier > 1 Then multiplier = 1
+                drawOpacity = multiplier
                 
-                    m_listOfPoints(i).x = m_listOfPoints(i).x + m_listOfSignsX(i) * 0.0004 * Abs(m_listOfPoints(i).y - m_listOfPoints(i).x)
-                    m_listOfPoints(i).y = m_listOfPoints(i).y + m_listOfSignsY(i) * 0.1 / Abs((33 - m_listOfPoints(i).y) / (77 + m_listOfPoints(i).x))
-                  
-                    'If a sample point leaves the screen, reverse its direction
-                    If m_listOfPoints(i).x < 0 Then m_listOfSignsX(i) = 1: m_listOfPoints(i).x = 0
-                    If m_listOfPoints(i).x > picWidth Then m_listOfSignsX(i) = -1: m_listOfPoints(i).x = picWidth
-                    If m_listOfPoints(i).y < 0 Then m_listOfSignsY(i) = 1: m_listOfPoints(i).y = 0
-                    If m_listOfPoints(i).y > picHeight Then m_listOfSignsY(i) = -1: m_listOfPoints(i).y = picHeight
+                'Next, we're going to calculate the actual points of this waveform.  Don't mind the math involved -
+                ' it's just a bit of basic trig, scaled to fit the target picture box
+                x = 0#
+                curPoint = 0
+                Do While x < (picWidth + WAVE_DENSITY)
+                
+                    'Use a parabola to scale the sine wave (we use a parabola because we want the wave's peak to
+                    ' occur in the middle of the output window, then taper as it approaches either end)
+                    drawScaling = 1 / halfWidth * (x - halfWidth)
+                    drawScaling = -1 * (drawScaling * drawScaling) + 1
                     
-                Next i
+                    'Calculate a y-value that corresponds with the calculate x-value
+                    If (x < picWidth) Then
+                        y = drawScaling * maxAmplitude * normedAmplitude * Sin(PI_DOUBLE * (x / picWidth) * WAVE_FREQUENCY + m_WavePhase) + halfHeight
+                    Else
+                        y = halfHeight
+                    End If
+                    
+                    'Add this newly calculated point to our running point collection
+                    m_listOfPoints(curPoint).x = x
+                    m_listOfPoints(curPoint).y = y
+                    
+                    'Move to the next point!
+                    curPoint = curPoint + 1
+                    x = x + WAVE_DENSITY
+                    
+                Loop
                 
-                'Gradually cycle between colors
-                m_Test1ColorIncrement = m_Test1ColorIncrement + 0.34
-                If m_Test1ColorIncrement > 255 Then
-                    m_Test1ColorIncrement = 0
-                    m_Test1ColorPhase = m_Test1ColorPhase + 1
-                    If m_Test1ColorPhase > 5 Then m_Test1ColorPhase = 0
-                End If
+                'Calculate a variable pen width based on which wave we are drawing.  The first wave receives full thickness;
+                ' the others are incrementally smaller until they reach "WAVE_SECONDARY_PEN_WIDTH"
+                If (i = 0) Then penWidth = WAVE_PRIMARY_PEN_WIDTH Else penWidth = WAVE_SECONDARY_PEN_WIDTH + ((NUMBER_OF_WAVES - i) / (NUMBER_OF_WAVES)) * (WAVE_PRIMARY_PEN_WIDTH - WAVE_SECONDARY_PEN_WIDTH)
                 
-                Select Case m_Test1ColorPhase
-                    Case 0: DrawDemo RGB(m_Test1ColorIncrement, 255 - m_Test1ColorIncrement, 255)
-                    Case 1: DrawDemo RGB(255, m_Test1ColorIncrement, 255 - m_Test1ColorIncrement)
-                    Case 2: DrawDemo RGB(255 - m_Test1ColorIncrement, 255, m_Test1ColorIncrement)
-                    Case 3: DrawDemo RGB(0, 255 - m_Test1ColorIncrement, m_Test1ColorIncrement)
-                    Case 4: DrawDemo RGB(255 - m_Test1ColorIncrement, m_Test1ColorIncrement, 0)
-                    Case 5: DrawDemo RGB(0, 0, 255 - m_Test1ColorIncrement)
+                'For now, we'll use the standard rainbow colors (ROYGBIV) to render each line
+                Select Case i
+                    Case 0
+                        penColor = RGB(210, 0, 0)
+                    Case 1
+                        penColor = RGB(250, 100, 35)
+                    Case 2
+                        penColor = RGB(250, 200, 35)
+                    Case 3
+                        penColor = RGB(50, 220, 0)
+                    Case 4
+                        penColor = RGB(20, 50, 250)
+                    Case 5
+                        penColor = RGB(250, 25, 250)
+                    Case 6
+                        penColor = RGB(90, 0, 90)
+                    Case Else
+                        penColor = RGB(50, 0, 50)
+                
                 End Select
                 
-                'Every 16 animation steps, copy the full contents of the "back buffer" surface onto the
-                ' on-screen picture box.  (Because the picture box's .AutoRedraw property is set to FALSE,
-                ' we do not need to forcibly refresh the picture box after copying the image data over.)
-                If (animationSteps And 15) = 0 Then m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+                'If the user wants us to fill the shape, let's draw the fill first (at 50% opacity).  Note that the "FillPolygon"
+                ' function automatically connects the first and last points in the wave, which is how we form a solid shape from
+                ' an abstract set of points.
+                If (Not m_Test1DontCloseShape) Then
+                    Drawing2D.QuickCreateSolidBrush cBrush, penColor, drawOpacity * 50
+                    m_Painter.FillPolygonF_FromPtF m_BackBuffer, cBrush, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, , P2_FR_OddEven
+                End If
                 
-            Next animationSteps
-        
+                'And finally, trace the path outline using the pen color and width we calculated previously
+                Drawing2D.QuickCreateSolidPen cPen, penWidth, penColor, drawOpacity * 100, P2_LJ_Round, P2_LC_Round
+                m_Painter.DrawLinesF_FromPtF m_BackBuffer, cPen, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines
+                
+            Next i
+            
+            'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
+            ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
+            ' refresh the picture box after copying.)
+            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+            
+            
         Case Test2_PolygonDemo
             
             'To move each polygon, we're going to use a "transform" object.  Transform objects "add together"
@@ -700,7 +744,8 @@ Private Sub tmrSample_Timer()
                 End With
             Next i
             
-            DrawDemo
+            'The actual draw operation is handled by a separate function, listed immediately below this one
+            RenderTest2Animation
             
             'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
@@ -713,75 +758,74 @@ Private Sub tmrSample_Timer()
     
 End Sub
 
-Private Sub DrawDemo(Optional ByVal drawColor As Long = vbBlack)
-    
-    'In each of these tests, we'll be performing a series of simple steps:
-    ' 1) Wrapping a pd2D surface around the picture box we want to paint on
-    ' 2) Creating whatever pens, brushes, and other rendering tools we need
-    ' 3) Painting onto our temporary surface.  (Because this surface just "wraps" the picture box, all of our
-    '     paint operations will appear immediately on the screen.)
+Private Sub RenderTest2Animation()
     
     Dim cBrush As pd2DBrush, cPen As pd2DPen, cPath As pd2DPath
     Set cPath = New pd2DPath
     
-    Select Case m_ActiveTest
+    'Completely erase the back buffer.
+    m_BackBuffer.EraseSurfaceContents 0, 0
     
-        Case Test1_SplineDemo
-            
-            'Create a pen matching the color we were passed.  We're also going to make the pen semi-transparent,
-            ' and we're going to use "round" junctions where two lines meet (instead of mitered or beveled junctions).
-            Drawing2D.QuickCreateSolidPen cPen, 0.5, drawColor, 5#, P2_LJ_Round, P2_LC_Round
-            
-            'Paint this path onto the output picture box
-            If m_Test1CloseShape Then
-                m_Painter.DrawPolygonF m_BackBuffer, cPen, m_NumOfPoints, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, 0.5
-            Else
-                m_Painter.DrawLinesF_FromPtF m_BackBuffer, cPen, m_NumOfPoints, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, 0.5
-            End If
-            
-        Case Test2_PolygonDemo
-            
-            'Completely erase the back buffer.
-            m_BackBuffer.EraseSurfaceContents 0, 0
-            
-            Dim i As Long
-            For i = 0 To m_NumOfPoints - 1
-                
-                With m_ListOfPolygons(i)
-                    
-                    'Create a path from this polygon
-                    cPath.ResetPath
-                    cPath.AddPolygon_Regular .PolygonSides, .PolygonRadius, .PolygonCenter.x, .PolygonCenter.y, m_Test2UseCurvature, .PolygonCurvature
-                    
-                    'Apply this polygon's transformation
-                    cPath.ApplyTransformation .PolygonTransform
-                    
-                    'First, fill the polygon area using the polygon's random fill color at 50% opacity
-                    Drawing2D.QuickCreateSolidBrush cBrush, .PolygonColorFill, 50#
-                    m_Painter.FillPath m_BackBuffer, cBrush, cPath
-                    
-                    'Then, trace the polygon outline using the polygon's random border color at 100% opacity
-                    Drawing2D.QuickCreateSolidPen cPen, .PolygonBorderWidth, .PolygonColorBorder, 100#
-                    m_Painter.DrawPath m_BackBuffer, cPen, cPath
-                    
-                End With
-                
-            Next i
+    'Iterate through our current polygon collection, and draw each one in turn
+    Dim i As Long
+    For i = 0 To m_NumOfPoints - 1
         
-    End Select
-    
+        With m_ListOfPolygons(i)
+            
+            'Create a path object from this polygon's set of points
+            cPath.ResetPath
+            cPath.AddPolygon_Regular .PolygonSides, .PolygonRadius, .PolygonCenter.x, .PolygonCenter.y, m_Test2UseCurvature, .PolygonCurvature
+            
+            'Apply this polygon's transformation.  (The transformation is a running sum of all move and rotate operations
+            ' we've applied to this polygon.)
+            cPath.ApplyTransformation .PolygonTransform
+            
+            'Fill the polygon area using the polygon's random fill color at a fraction of its original opacity
+            Drawing2D.QuickCreateSolidBrush cBrush, .PolygonColorFill, 25#
+            m_Painter.FillPath m_BackBuffer, cBrush, cPath
+            
+            'Finish by tracing the polygon outline using the polygon's random border color at 100% opacity
+            Drawing2D.QuickCreateSolidPen cPen, .PolygonBorderWidth, .PolygonColorBorder, 100#
+            m_Painter.DrawPath m_BackBuffer, cPen, cPath
+            
+        End With
+        
+    Next i
+        
     'Note that we don't have to free any objects here - pd2D always takes care of that for us.
 
 End Sub
 
-'If an animated demo supports different rendering options, we'll set those options here.  Option changes always
-' trigger an "erase" action, to make it easier to see what's changed.
+'If an animated demo supports different rendering options (via checkbox or other UI), we handle those options here.
+Private Sub chkAntialiasing_Click()
+    If CBool(chkAntialiasing.Value = vbChecked) Then m_BackBuffer.SetSurfaceAntialiasing P2_AA_HighQuality Else m_BackBuffer.SetSurfaceAntialiasing P2_AA_None
+End Sub
+
 Private Sub chkTest1Complete_Click()
-    EraseAllBuffers
-    m_Test1CloseShape = CBool(chkTest1Complete.Value = vbChecked)
+    m_Test1DontCloseShape = CBool(chkTest1Complete.Value = vbChecked)
 End Sub
 
 Private Sub chkTest1Lines_Click()
-    EraseAllBuffers
     m_Test1UseLines = CBool(chkTest1Lines.Value = vbChecked)
 End Sub
+
+Private Sub chkTest2Curvature_Click()
+    m_Test2UseCurvature = CBool(chkTest2Curvature.Value = vbChecked)
+End Sub
+
+'Clicking the "add polygons" button will add 20 more random polygons to the demonstration
+Private Sub cmdTest2AddPolygons_Click()
+    
+    Dim oldNumOfPoints As Long
+    oldNumOfPoints = m_NumOfPoints
+    
+    m_NumOfPoints = m_NumOfPoints + DEFAULT_ANIMATION_SHAPES
+    ReDim Preserve m_ListOfPolygons(0 To m_NumOfPoints - 1) As AnimatedPolygon
+    
+    Dim i As Long
+    For i = oldNumOfPoints To m_NumOfPoints - 1
+        Test2RandomizePolygon m_ListOfPolygons(i), i
+    Next i
+
+End Sub
+
