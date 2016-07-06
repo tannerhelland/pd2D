@@ -176,6 +176,22 @@ End Enum
     Private Const P2_DS_Solid = 0&, P2_DS_Dash = 1&, P2_DS_Dot = 2&, P2_DS_DashDot = 3&, P2_DS_DashDotDot = 4&, P2_DS_Custom = 5&
 #End If
 
+Public Enum PD_2D_FileFormat
+    P2_FF_Undefined = -1
+    P2_FF_BMP = 0
+    P2_FF_ICO = 1
+    P2_FF_JPEG = 2
+    P2_FF_GIF = 3
+    P2_FF_PNG = 4
+    P2_FF_TIFF = 5
+    P2_FF_WMF = 6
+    P2_FF_EMF = 7
+End Enum
+
+#If False Then
+    Private Const P2_FF_Undefined = -1, P2_FF_BMP = 0, P2_FF_ICO = 1, P2_FF_JPEG = 2, P2_FF_GIF = 3, P2_FF_PNG = 4, P2_FF_TIFF = 5, P2_FF_WMF = 6, P2_FF_EMF = 7
+#End If
+
 Public Enum PD_2D_FillRule
     P2_FR_OddEven = 0&
     P2_FR_Winding = 1&

@@ -90,6 +90,16 @@ End Enum
     Private Const GP_QM_Invalid = -1, GP_QM_Default = 0, GP_QM_Low = 1, GP_QM_High = 2
 #End If
 
+Public Enum GP_BitmapLockMode
+    GP_BLM_Read = &H1
+    GP_BLM_Write = &H2
+    GP_BLM_UserInputBuf = &H4
+End Enum
+
+#If False Then
+    Private Const GP_BLM_Read = &H1, GP_BLM_Write = &H2, GP_BLM_UserInputBuf = &H4
+#End If
+
 Public Enum GP_BrushType        'IMPORTANT NOTE!  This enum is *not* the same as PD's internal 2D brush modes!
     GP_BT_SolidColor = 0
     GP_BT_HatchFill = 1
@@ -199,6 +209,16 @@ End Enum
     Private Const GP_FM_Alternate = 0&, GP_FM_Winding = 1&
 #End If
 
+Public Enum GP_ImageType
+    GP_IT_Unknown = 0
+    GP_IT_Bitmap = 1
+    GP_IT_Metafile = 2
+End Enum
+
+#If False Then
+    Private Const GP_IT_Unknown = 0, GP_IT_Bitmap = 1, GP_IT_Metafile = 2
+#End If
+
 Public Enum GP_InterpolationMode
     GP_IM_Invalid = GP_QM_Invalid
     GP_IM_Default = GP_QM_Default
@@ -250,6 +270,16 @@ End Enum
 #If False Then
     Private Const GP_MO_Prepend = 0&, GP_MO_Append = 1&
 #End If
+
+'EMFs can be converted between various formats.  GDI+ prefers "EMF+", which supports GDI+ primitives as well
+Public Enum GP_MetafileType
+   GP_MT_Invalid = 0
+   GP_MT_Wmf = 1
+   GP_MT_WmfPlaceable = 2
+   GP_MT_Emf = 3              'Old-style EMF consisting only of GDI commands
+   GP_MT_EmfPlus = 4          'New-style EMF+ consisting only of GDI+ commands
+   GP_MT_EmfDual = 5          'New-style EMF+ with GDI fallbacks for legacy rendering
+End Enum
 
 Public Enum GP_PatternStyle
     GP_PS_Horizontal = 0
@@ -322,6 +352,48 @@ End Enum
     Private Const GP_PA_Center = 0&, GP_PA_Inset = 1&
 #End If
 
+'GDI+ pixel format IDs use a bitfield system:
+' [0, 7] = format index
+' [8, 15] = pixel size (in bits)
+' [16, 23] = flags
+' [24, 31] = reserved (current unused)
+
+'Note also that pixel format is *not* 100% reliable.  Behavior differs between OSes, even for the "same"
+' major GDI+ version.  (See http://stackoverflow.com/questions/5065371/how-to-identify-cmyk-images-in-asp-net-using-c-sharp)
+Public Enum GP_PixelFormat
+    GP_PF_Indexed = &H10000         'Image uses a palette to define colors
+    GP_PF_GDI = &H20000             'Is a format supported by GDI
+    GP_PF_Alpha = &H40000           'Alpha channel present
+    GP_PF_PreMultAlpha = &H80000    'Alpha is premultiplied (not always correct; manual verification should be used)
+    GP_PF_HDR = &H100000            'High bit-depth colors are in use (e.g. 48-bpp or 64-bpp; behavior is unpredictable on XP)
+    GP_PF_Canonical = &H200000      'Canonical formats: 32bppARGB, 32bppPARGB, 64bppARGB, 64bppPARGB
+    
+    GP_PF_32bppCMYK = &H200F        'CMYK is never returned on XP or Vista; ImageFlags can be checked as a failsafe
+                                    ' (Conversely, ImageFlags are unreliable on Win 7 - this is the shit we deal with
+                                    '  as Windows developers!)
+    
+    GP_PF_1bppIndexed = &H30101
+    GP_PF_4bppIndexed = &H30402
+    GP_PF_8bppIndexed = &H30803
+    GP_PF_16bppGreyscale = &H101004
+    GP_PF_16bppRGB555 = &H21005
+    GP_PF_16bppRGB565 = &H21006
+    GP_PF_16bppARGB1555 = &H61007
+    GP_PF_24bppRGB = &H21808
+    GP_PF_32bppRGB = &H22009
+    GP_PF_32bppARGB = &H26200A
+    GP_PF_32bppPARGB = &HE200B
+    GP_PF_48bppRGB = &H10300C
+    GP_PF_64bppARGB = &H34400D
+    GP_PF_64bppPARGB = &H1C400E
+End Enum
+
+#If False Then
+    Private Const GP_PF_Indexed = &H10000, GP_PF_GDI = &H20000, GP_PF_Alpha = &H40000, GP_PF_PreMultAlpha = &H80000, GP_PF_HDR = &H100000, GP_PF_Canonical = &H200000, GP_PF_32bppCMYK = &H200F
+    Private Const GP_PF_1bppIndexed = &H30101, GP_PF_4bppIndexed = &H30402, GP_PF_8bppIndexed = &H30803, GP_PF_16bppGreyscale = &H101004, GP_PF_16bppRGB555 = &H21005, GP_PF_16bppRGB565 = &H21006
+    Private Const GP_PF_16bppARGB1555 = &H61007, GP_PF_24bppRGB = &H21808, GP_PF_32bppRGB = &H22009, GP_PF_32bppARGB = &H26200A, GP_PF_32bppPARGB = &HE200B, GP_PF_48bppRGB = &H10300C, GP_PF_64bppARGB = &H34400D, GP_PF_64bppPARGB = &H1C400E
+#End If
+
 'PixelOffsetMode controls how GDI+ calculates positioning.  Normally, each a pixel is treated as a unit square that covers
 ' the area between [0, 0] and [1, 1].  However, for point-based objects like paths, GDI+ can treat coordinates as if they
 ' are centered over [0.5, 0.5] offsets within each pixel.  This typically yields prettier path renders, at some consequence
@@ -337,6 +409,270 @@ End Enum
 
 #If False Then
     Private Const GP_POM_Invalid = QualityModeInvalid, GP_POM_Default = QualityModeDefault, GP_POM_HighSpeed = QualityModeLow, GP_POM_HighQuality = QualityModeHigh, GP_POM_None = 3, GP_POM_Half = 4
+#End If
+
+'Property tags describe image metadata.  Metadata is very complicated to read and/or write, because tags are encoded
+' in a variety of ways.  Refer to https://msdn.microsoft.com/en-us/library/ms534416(v=vs.85).aspx for details.
+' pd2D uses these sparingly; do not expect it to perform full metadata preservation.
+Public Enum GP_PropertyTag
+    GP_PT_Artist = &H13B
+    GP_PT_BitsPerSample = &H102
+    GP_PT_CellHeight = &H109
+    GP_PT_CellWidth = &H108
+    GP_PT_ChrominanceTable = &H5091
+    GP_PT_ColorMap = &H140
+    GP_PT_ColorTransferFunction = &H501A
+    GP_PT_Compression = &H103
+    GP_PT_Copyright = &H8298
+    GP_PT_DateTime = &H132
+    GP_PT_DocumentName = &H10D
+    GP_PT_DotRange = &H150
+    GP_PT_EquipMake = &H10F
+    GP_PT_EquipModel = &H110
+    GP_PT_ExifAperture = &H9202
+    GP_PT_ExifBrightness = &H9203
+    GP_PT_ExifCfaPattern = &HA302
+    GP_PT_ExifColorSpace = &HA001
+    GP_PT_ExifCompBPP = &H9102
+    GP_PT_ExifCompConfig = &H9101
+    GP_PT_ExifDTDigitized = &H9004
+    GP_PT_ExifDTDigSS = &H9292
+    GP_PT_ExifDTOrig = &H9003
+    GP_PT_ExifDTOrigSS = &H9291
+    GP_PT_ExifDTSubsec = &H9290
+    GP_PT_ExifExposureBias = &H9204
+    GP_PT_ExifExposureIndex = &HA215
+    GP_PT_ExifExposureProg = &H8822
+    GP_PT_ExifExposureTime = &H829A
+    GP_PT_ExifFileSource = &HA300
+    GP_PT_ExifFlash = &H9209
+    GP_PT_ExifFlashEnergy = &HA20B
+    GP_PT_ExifFNumber = &H829D
+    GP_PT_ExifFocalLength = &H920A
+    GP_PT_ExifFocalResUnit = &HA210
+    GP_PT_ExifFocalXRes = &HA20E
+    GP_PT_ExifFocalYRes = &HA20F
+    GP_PT_ExifFPXVer = &HA000
+    GP_PT_ExifIFD = &H8769
+    GP_PT_ExifInterop = &HA005
+    GP_PT_ExifISOSpeed = &H8827
+    GP_PT_ExifLightSource = &H9208
+    GP_PT_ExifMakerNote = &H927C
+    GP_PT_ExifMaxAperture = &H9205
+    GP_PT_ExifMeteringMode = &H9207
+    GP_PT_ExifOECF = &H8828
+    GP_PT_ExifPixXDim = &HA002
+    GP_PT_ExifPixYDim = &HA003
+    GP_PT_ExifRelatedWav = &HA004
+    GP_PT_ExifSceneType = &HA301
+    GP_PT_ExifSensingMethod = &HA217
+    GP_PT_ExifShutterSpeed = &H9201
+    GP_PT_ExifSpatialFR = &HA20C
+    GP_PT_ExifSpectralSense = &H8824
+    GP_PT_ExifSubjectDist = &H9206
+    GP_PT_ExifSubjectLoc = &HA214
+    GP_PT_ExifUserComment = &H9286
+    GP_PT_ExifVer = &H9000
+    GP_PT_ExtraSamples = &H152
+    GP_PT_FillOrder = &H10A
+    GP_PT_FrameDelay = &H5100
+    GP_PT_FreeByteCounts = &H121
+    GP_PT_FreeOffset = &H120
+    GP_PT_Gamma = &H301
+    GP_PT_GlobalPalette = &H5102
+    GP_PT_GpsAltitude = &H6
+    GP_PT_GpsAltitudeRef = &H5
+    GP_PT_GpsDestBear = &H18
+    GP_PT_GpsDestBearRef = &H17
+    GP_PT_GpsDestDist = &H1A
+    GP_PT_GpsDestDistRef = &H19
+    GP_PT_GpsDestLat = &H14
+    GP_PT_GpsDestLatRef = &H13
+    GP_PT_GpsDestLong = &H16
+    GP_PT_GpsDestLongRef = &H15
+    GP_PT_GpsGpsDop = &HB
+    GP_PT_GpsGpsMeasureMode = &HA
+    GP_PT_GpsGpsSatellites = &H8
+    GP_PT_GpsGpsStatus = &H9
+    GP_PT_GpsGpsTime = &H7
+    GP_PT_GpsIFD = &H8825
+    GP_PT_GpsImgDir = &H11
+    GP_PT_GpsImgDirRef = &H10
+    GP_PT_GpsLatitude = &H2
+    GP_PT_GpsLatitudeRef = &H1
+    GP_PT_GpsLongitude = &H4
+    GP_PT_GpsLongitudeRef = &H3
+    GP_PT_GpsMapDatum = &H12
+    GP_PT_GpsSpeed = &HD
+    GP_PT_GpsSpeedRef = &HC
+    GP_PT_GpsTrack = &HF
+    GP_PT_GpsTrackRef = &HE
+    GP_PT_GpsVer = &H0
+    GP_PT_GrayResponseCurve = &H123
+    GP_PT_GrayResponseUnit = &H122
+    GP_PT_GridSize = &H5011
+    GP_PT_HalftoneDegree = &H500C
+    GP_PT_HalftoneHints = &H141
+    GP_PT_HalftoneLPI = &H500A
+    GP_PT_HalftoneLPIUnit = &H500B
+    GP_PT_HalftoneMisc = &H500E
+    GP_PT_HalftoneScreen = &H500F
+    GP_PT_HalftoneShape = &H500D
+    GP_PT_HostComputer = &H13C
+    GP_PT_ICCProfile = &H8773
+    GP_PT_ICCProfileDescriptor = &H302
+    GP_PT_ImageDescription = &H10E
+    GP_PT_ImageHeight = &H101
+    GP_PT_ImageTitle = &H320
+    GP_PT_ImageWidth = &H100
+    GP_PT_IndexBackground = &H5103
+    GP_PT_IndexTransparent = &H5104
+    GP_PT_InkNames = &H14D
+    GP_PT_InkSet = &H14C
+    GP_PT_JPEGACTables = &H209
+    GP_PT_JPEGDCTables = &H208
+    GP_PT_JPEGInterFormat = &H201
+    GP_PT_JPEGInterLength = &H202
+    GP_PT_JPEGLosslessPredictors = &H205
+    GP_PT_JPEGPointTransforms = &H206
+    GP_PT_JPEGProc = &H200
+    GP_PT_JPEGQTables = &H207
+    GP_PT_JPEGQuality = &H5010
+    GP_PT_JPEGRestartInterval = &H203
+    GP_PT_LoopCount = &H5101
+    GP_PT_LuminanceTable = &H5090
+    GP_PT_MaxSampleValue = &H119
+    GP_PT_MinSampleValue = &H118
+    GP_PT_NewSubfileType = &HFE
+    GP_PT_NumberOfInks = &H14E
+    GP_PT_Orientation = &H112
+    GP_PT_PageName = &H11D
+    GP_PT_PageNumber = &H129
+    GP_PT_PaletteHistogram = &H5113
+    GP_PT_PhotometricInterp = &H106
+    GP_PT_PixelPerUnitX = &H5111
+    GP_PT_PixelPerUnitY = &H5112
+    GP_PT_PixelUnit = &H5110
+    GP_PT_PlanarConfig = &H11C
+    GP_PT_Predictor = &H13D
+    GP_PT_PrimaryChromaticities = &H13F
+    GP_PT_PrintFlags = &H5005
+    GP_PT_PrintFlagsBleedWidth = &H5008
+    GP_PT_PrintFlagsBleedWidthScale = &H5009
+    GP_PT_PrintFlagsCrop = &H5007
+    GP_PT_PrintFlagsVersion = &H5006
+    GP_PT_REFBlackWhite = &H214
+    GP_PT_ResolutionUnit = &H128
+    GP_PT_ResolutionXLengthUnit = &H5003
+    GP_PT_ResolutionXUnit = &H5001
+    GP_PT_ResolutionYLengthUnit = &H5004
+    GP_PT_ResolutionYUnit = &H5002
+    GP_PT_RowsPerStrip = &H116
+    GP_PT_SampleFormat = &H153
+    GP_PT_SamplesPerPixel = &H115
+    GP_PT_SMaxSampleValue = &H155
+    GP_PT_SMinSampleValue = &H154
+    GP_PT_SoftwareUsed = &H131
+    GP_PT_SRGBRenderingIntent = &H303
+    GP_PT_StripBytesCount = &H117
+    GP_PT_StripOffsets = &H111
+    GP_PT_SubfileType = &HFF
+    GP_PT_T4Option = &H124
+    GP_PT_T6Option = &H125
+    GP_PT_TargetPrinter = &H151
+    GP_PT_ThreshHolding = &H107
+    GP_PT_ThumbnailArtist = &H5034
+    GP_PT_ThumbnailBitsPerSample = &H5022
+    GP_PT_ThumbnailColorDepth = &H5015
+    GP_PT_ThumbnailCompressedSize = &H5019
+    GP_PT_ThumbnailCompression = &H5023
+    GP_PT_ThumbnailCopyRight = &H503B
+    GP_PT_ThumbnailData = &H501B
+    GP_PT_ThumbnailDateTime = &H5033
+    GP_PT_ThumbnailEquipMake = &H5026
+    GP_PT_ThumbnailEquipModel = &H5027
+    GP_PT_ThumbnailFormat = &H5012
+    GP_PT_ThumbnailHeight = &H5014
+    GP_PT_ThumbnailImageDescription = &H5025
+    GP_PT_ThumbnailImageHeight = &H5021
+    GP_PT_ThumbnailImageWidth = &H5020
+    GP_PT_ThumbnailOrientation = &H5029
+    GP_PT_ThumbnailPhotometricInterp = &H5024
+    GP_PT_ThumbnailPlanarConfig = &H502F
+    GP_PT_ThumbnailPlanes = &H5016
+    GP_PT_ThumbnailPrimaryChromaticities = &H5036
+    GP_PT_ThumbnailRawBytes = &H5017
+    GP_PT_ThumbnailRefBlackWhite = &H503A
+    GP_PT_ThumbnailResolutionUnit = &H5030
+    GP_PT_ThumbnailResolutionX = &H502D
+    GP_PT_ThumbnailResolutionY = &H502E
+    GP_PT_ThumbnailRowsPerStrip = &H502B
+    GP_PT_ThumbnailSamplesPerPixel = &H502A
+    GP_PT_ThumbnailSize = &H5018
+    GP_PT_ThumbnailSoftwareUsed = &H5032
+    GP_PT_ThumbnailStripBytesCount = &H502C
+    GP_PT_ThumbnailStripOffsets = &H5028
+    GP_PT_ThumbnailTransferFunction = &H5031
+    GP_PT_ThumbnailWhitePoint = &H5035
+    GP_PT_ThumbnailWidth = &H5013
+    GP_PT_ThumbnailYCbCrCoefficients = &H5037
+    GP_PT_ThumbnailYCbCrPositioning = &H5039
+    GP_PT_ThumbnailYCbCrSubsampling = &H5038
+    GP_PT_TileByteCounts = &H145
+    GP_PT_TileLength = &H143
+    GP_PT_TileOffset = &H144
+    GP_PT_TileWidth = &H142
+    GP_PT_TransferFunction = &H12D
+    GP_PT_TransferRange = &H156
+    GP_PT_WhitePoint = &H13E
+    GP_PT_XPosition = &H11E
+    GP_PT_XResolution = &H11A
+    GP_PT_YCbCrCoefficients = &H211
+    GP_PT_YCbCrPositioning = &H213
+    GP_PT_YCbCrSubsampling = &H212
+    GP_PT_YPosition = &H11F
+    GP_PT_YResolution = &H11B
+End Enum
+
+#If False Then
+    Private Const GP_PT_Artist = &H13B, GP_PT_BitsPerSample = &H102, GP_PT_CellHeight = &H109, GP_PT_CellWidth = &H108, GP_PT_ChrominanceTable = &H5091, GP_PT_ColorMap = &H140, GP_PT_ColorTransferFunction = &H501A, GP_PT_Compression = &H103, GP_PT_Copyright = &H8298, GP_PT_DateTime = &H132, GP_PT_DocumentName = &H10D, GP_PT_DotRange = &H150, GP_PT_EquipMake = &H10F, GP_PT_EquipModel = &H110, GP_PT_ExifAperture = &H9202, GP_PT_ExifBrightness = &H9203, GP_PT_ExifCfaPattern = &HA302, GP_PT_ExifColorSpace = &HA001
+    Private Const GP_PT_ExifCompBPP = &H9102, GP_PT_ExifCompConfig = &H9101, GP_PT_ExifDTDigitized = &H9004, GP_PT_ExifDTDigSS = &H9292, GP_PT_ExifDTOrig = &H9003, GP_PT_ExifDTOrigSS = &H9291, GP_PT_ExifDTSubsec = &H9290, GP_PT_ExifExposureBias = &H9204, GP_PT_ExifExposureIndex = &HA215, GP_PT_ExifExposureProg = &H8822, GP_PT_ExifExposureTime = &H829A, GP_PT_ExifFileSource = &HA300, GP_PT_ExifFlash = &H9209, GP_PT_ExifFlashEnergy = &HA20B, GP_PT_ExifFNumber = &H829D, GP_PT_ExifFocalLength = &H920A
+    Private Const GP_PT_ExifFocalResUnit = &HA210, GP_PT_ExifFocalXRes = &HA20E, GP_PT_ExifFocalYRes = &HA20F, GP_PT_ExifFPXVer = &HA000, GP_PT_ExifIFD = &H8769, GP_PT_ExifInterop = &HA005, GP_PT_ExifISOSpeed = &H8827, GP_PT_ExifLightSource = &H9208, GP_PT_ExifMakerNote = &H927C, GP_PT_ExifMaxAperture = &H9205, GP_PT_ExifMeteringMode = &H9207, GP_PT_ExifOECF = &H8828, GP_PT_ExifPixXDim = &HA002, GP_PT_ExifPixYDim = &HA003, GP_PT_ExifRelatedWav = &HA004, GP_PT_ExifSceneType = &HA301
+    Private Const GP_PT_ExifSensingMethod = &HA217, GP_PT_ExifShutterSpeed = &H9201, GP_PT_ExifSpatialFR = &HA20C, GP_PT_ExifSpectralSense = &H8824, GP_PT_ExifSubjectDist = &H9206, GP_PT_ExifSubjectLoc = &HA214, GP_PT_ExifUserComment = &H9286, GP_PT_ExifVer = &H9000, GP_PT_ExtraSamples = &H152, GP_PT_FillOrder = &H10A, GP_PT_FrameDelay = &H5100, GP_PT_FreeByteCounts = &H121, GP_PT_FreeOffset = &H120, GP_PT_Gamma = &H301, GP_PT_GlobalPalette = &H5102, GP_PT_GpsAltitude = &H6
+    Private Const GP_PT_GpsAltitudeRef = &H5, GP_PT_GpsDestBear = &H18, GP_PT_GpsDestBearRef = &H17, GP_PT_GpsDestDist = &H1A, GP_PT_GpsDestDistRef = &H19, GP_PT_GpsDestLat = &H14, GP_PT_GpsDestLatRef = &H13, GP_PT_GpsDestLong = &H16, GP_PT_GpsDestLongRef = &H15, GP_PT_GpsGpsDop = &HB, GP_PT_GpsGpsMeasureMode = &HA, GP_PT_GpsGpsSatellites = &H8, GP_PT_GpsGpsStatus = &H9, GP_PT_GpsGpsTime = &H7, GP_PT_GpsIFD = &H8825, GP_PT_GpsImgDir = &H11, GP_PT_GpsImgDirRef = &H10, GP_PT_GpsLatitude = &H2
+    Private Const GP_PT_GpsLatitudeRef = &H1, GP_PT_GpsLongitude = &H4, GP_PT_GpsLongitudeRef = &H3, GP_PT_GpsMapDatum = &H12, GP_PT_GpsSpeed = &HD, GP_PT_GpsSpeedRef = &HC, GP_PT_GpsTrack = &HF, GP_PT_GpsTrackRef = &HE, GP_PT_GpsVer = &H0, GP_PT_GrayResponseCurve = &H123, GP_PT_GrayResponseUnit = &H122, GP_PT_GridSize = &H5011, GP_PT_HalftoneDegree = &H500C, GP_PT_HalftoneHints = &H141, GP_PT_HalftoneLPI = &H500A, GP_PT_HalftoneLPIUnit = &H500B, GP_PT_HalftoneMisc = &H500E, GP_PT_HalftoneScreen = &H500F
+    Private Const GP_PT_HalftoneShape = &H500D, GP_PT_HostComputer = &H13C, GP_PT_ICCProfile = &H8773, GP_PT_ICCProfileDescriptor = &H302, GP_PT_ImageDescription = &H10E, GP_PT_ImageHeight = &H101, GP_PT_ImageTitle = &H320, GP_PT_ImageWidth = &H100, GP_PT_IndexBackground = &H5103, GP_PT_IndexTransparent = &H5104, GP_PT_InkNames = &H14D, GP_PT_InkSet = &H14C, GP_PT_JPEGACTables = &H209, GP_PT_JPEGDCTables = &H208, GP_PT_JPEGInterFormat = &H201, GP_PT_JPEGInterLength = &H202, GP_PT_JPEGLosslessPredictors = &H205
+    Private Const GP_PT_JPEGPointTransforms = &H206, GP_PT_JPEGProc = &H200, GP_PT_JPEGQTables = &H207, GP_PT_JPEGQuality = &H5010, GP_PT_JPEGRestartInterval = &H203, GP_PT_LoopCount = &H5101, GP_PT_LuminanceTable = &H5090, GP_PT_MaxSampleValue = &H119, GP_PT_MinSampleValue = &H118, GP_PT_NewSubfileType = &HFE, GP_PT_NumberOfInks = &H14E, GP_PT_Orientation = &H112, GP_PT_PageName = &H11D, GP_PT_PageNumber = &H129, GP_PT_PaletteHistogram = &H5113, GP_PT_PhotometricInterp = &H106, GP_PT_PixelPerUnitX = &H5111
+    Private Const GP_PT_PixelPerUnitY = &H5112, GP_PT_PixelUnit = &H5110, GP_PT_PlanarConfig = &H11C, GP_PT_Predictor = &H13D, GP_PT_PrimaryChromaticities = &H13F, GP_PT_PrintFlags = &H5005, GP_PT_PrintFlagsBleedWidth = &H5008, GP_PT_PrintFlagsBleedWidthScale = &H5009, GP_PT_PrintFlagsCrop = &H5007, GP_PT_PrintFlagsVersion = &H5006, GP_PT_REFBlackWhite = &H214, GP_PT_ResolutionUnit = &H128, GP_PT_ResolutionXLengthUnit = &H5003, GP_PT_ResolutionXUnit = &H5001, GP_PT_ResolutionYLengthUnit = &H5004
+    Private Const GP_PT_ResolutionYUnit = &H5002, GP_PT_RowsPerStrip = &H116, GP_PT_SampleFormat = &H153, GP_PT_SamplesPerPixel = &H115, GP_PT_SMaxSampleValue = &H155, GP_PT_SMinSampleValue = &H154, GP_PT_SoftwareUsed = &H131, GP_PT_SRGBRenderingIntent = &H303, GP_PT_StripBytesCount = &H117, GP_PT_StripOffsets = &H111, GP_PT_SubfileType = &HFF, GP_PT_T4Option = &H124, GP_PT_T6Option = &H125, GP_PT_TargetPrinter = &H151, GP_PT_ThreshHolding = &H107, GP_PT_ThumbnailArtist = &H5034, GP_PT_ThumbnailBitsPerSample = &H5022
+    Private Const GP_PT_ThumbnailColorDepth = &H5015, GP_PT_ThumbnailCompressedSize = &H5019, GP_PT_ThumbnailCompression = &H5023, GP_PT_ThumbnailCopyRight = &H503B, GP_PT_ThumbnailData = &H501B, GP_PT_ThumbnailDateTime = &H5033, GP_PT_ThumbnailEquipMake = &H5026, GP_PT_ThumbnailEquipModel = &H5027, GP_PT_ThumbnailFormat = &H5012, GP_PT_ThumbnailHeight = &H5014, GP_PT_ThumbnailImageDescription = &H5025, GP_PT_ThumbnailImageHeight = &H5021, GP_PT_ThumbnailImageWidth = &H5020, GP_PT_ThumbnailOrientation = &H5029, GP_PT_ThumbnailPhotometricInterp = &H5024
+    Private Const GP_PT_ThumbnailPlanarConfig = &H502F, GP_PT_ThumbnailPlanes = &H5016, GP_PT_ThumbnailPrimaryChromaticities = &H5036, GP_PT_ThumbnailRawBytes = &H5017, GP_PT_ThumbnailRefBlackWhite = &H503A, GP_PT_ThumbnailResolutionUnit = &H5030, GP_PT_ThumbnailResolutionX = &H502D, GP_PT_ThumbnailResolutionY = &H502E, GP_PT_ThumbnailRowsPerStrip = &H502B, GP_PT_ThumbnailSamplesPerPixel = &H502A, GP_PT_ThumbnailSize = &H5018, GP_PT_ThumbnailSoftwareUsed = &H5032, GP_PT_ThumbnailStripBytesCount = &H502C, GP_PT_ThumbnailStripOffsets = &H5028
+    Private Const GP_PT_ThumbnailTransferFunction = &H5031, GP_PT_ThumbnailWhitePoint = &H5035, GP_PT_ThumbnailWidth = &H5013, GP_PT_ThumbnailYCbCrCoefficients = &H5037, GP_PT_ThumbnailYCbCrPositioning = &H5039, GP_PT_ThumbnailYCbCrSubsampling = &H5038, GP_PT_TileByteCounts = &H145, GP_PT_TileLength = &H143, GP_PT_TileOffset = &H144, GP_PT_TileWidth = &H142, GP_PT_TransferFunction = &H12D, GP_PT_TransferRange = &H156, GP_PT_WhitePoint = &H13E, GP_PT_XPosition = &H11E, GP_PT_XResolution = &H11A, GP_PT_YCbCrCoefficients = &H211
+    Private Const GP_PT_YCbCrPositioning = &H213, GP_PT_YCbCrSubsampling = &H212, GP_PT_YPosition = &H11F, GP_PT_YResolution = &H11B
+#End If
+
+Public Enum GP_RotateFlip
+    GP_RF_NoneFlipNone = 0
+    GP_RF_90FlipNone = 1
+    GP_RF_180FlipNone = 2
+    GP_RF_270FlipNone = 3
+    GP_RF_NoneFlipX = 4
+    GP_RF_90FlipX = 5
+    GP_RF_180FlipX = 6
+    GP_RF_270FlipX = 7
+    GP_RF_NoneFlipY = GP_RF_180FlipX
+    GP_RF_90FlipY = GP_RF_270FlipX
+    GP_RF_180FlipY = GP_RF_NoneFlipX
+    GP_RF_270FlipY = GP_RF_90FlipX
+    GP_RF_NoneFlipXY = GP_RF_180FlipNone
+    GP_RF_90FlipXY = GP_RF_270FlipNone
+    GP_RF_180FlipXY = GP_RF_NoneFlipNone
+    GP_RF_270FlipXY = GP_RF_90FlipNone
+End Enum
+
+#If False Then
+    Private Const GP_RF_NoneFlipNone = 0, GP_RF_90FlipNone = 1, GP_RF_180FlipNone = 2, GP_RF_270FlipNone = 3, GP_RF_NoneFlipX = 4, GP_RF_90FlipX = 5, GP_RF_180FlipX = 6, GP_RF_270FlipX = 7, GP_RF_NoneFlipY = GP_RF_180FlipX
+    Private Const GP_RF_90FlipY = GP_RF_270FlipX, GP_RF_180FlipY = GP_RF_NoneFlipX, GP_RF_270FlipY = GP_RF_90FlipX, GP_RF_NoneFlipXY = GP_RF_180FlipNone, GP_RF_90FlipXY = GP_RF_270FlipNone, GP_RF_180FlipXY = GP_RF_NoneFlipNone, GP_RF_270FlipXY = GP_RF_90FlipNone
 #End If
 
 Public Enum GP_SmoothingMode
@@ -378,7 +714,15 @@ End Enum
     Private Const GP_WM_Tile = 0, GP_WM_TileFlipX = 1, GP_WM_TileFlipY = 2, GP_WM_TileFlipXY = 3, GP_WM_Clamp = 4
 #End If
 
-Private Const PixelFormat32bppPARGB = &HE200B
+'GDI+ uses a modified bitmap struct when performing things like raster format conversions
+Public Type GP_BitmapData
+    BD_Width As Long
+    BD_Height As Long
+    BD_Stride As Long
+    BD_PixelFormat As GP_PixelFormat
+    BD_Scan0 As Long
+    BD_Reserved As Long
+End Type
 
 'GDI interop is made easier by declaring a few GDI-specific structs
 Private Type BITMAPINFOHEADER
@@ -405,6 +749,20 @@ Private Type tmpLong
     lngResult As Long
 End Type
 
+'GDI+ uses GUIDs to define image formats.  VB6 doesn't let us predeclare byte arrays (at least not easily),
+' so we save ourselves the trouble and just use string versions.
+Private Const GP_FF_GUID_Undefined = "{B96B3CA9-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_MemoryBMP = "{B96B3CAA-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_BMP = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_EMF = "{B96B3CAC-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_WMF = "{B96B3CAD-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_JPEG = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_PNG = "{B96B3CAF-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_GIF = "{B96B3CB0-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_TIFF = "{B96B3CB1-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_EXIF = "{B96B3CB2-0728-11D3-9D7B-0000F81EF32E}"
+Private Const GP_FF_GUID_Icon = "{B96B3CB5-0728-11D3-9D7B-0000F81EF32E}"
+
 'Core GDI+ functions:
 Private Declare Function GdiplusStartup Lib "gdiplus" (ByRef gdipToken As Long, ByRef startupStruct As GDIPlusStartupInput, Optional ByVal OutputBuffer As Long = 0&) As GP_Result
 Private Declare Function GdiplusShutdown Lib "gdiplus" (ByVal gdipToken As Long) As GP_Result
@@ -421,6 +779,10 @@ Private Declare Function GdipAddPathPolygon Lib "gdiplus" (ByVal hPath As Long, 
 Private Declare Function GdipAddPathArc Lib "gdiplus" (ByVal hPath As Long, ByVal x As Single, ByVal y As Single, ByVal arcWidth As Single, ByVal arcHeight As Single, ByVal startAngle As Single, ByVal sweepAngle As Single) As GP_Result
 Private Declare Function GdipAddPathPath Lib "gdiplus" (ByVal hPath As Long, ByVal pathToAdd As Long, ByVal connectToPreviousPoint As Long) As GP_Result
 
+Private Declare Function GdipBitmapLockBits Lib "gdiplus" (ByVal hImage As Long, ByRef srcRect As RECTL, ByVal lockMode As GP_BitmapLockMode, ByVal dstPixelFormat As GP_PixelFormat, ByRef srcBitmapData As GP_BitmapData) As GP_Result
+Private Declare Function GdipBitmapUnlockBits Lib "gdiplus" (ByVal hImage As Long, ByRef srcBitmapData As GP_BitmapData) As GP_Result
+
+Private Declare Function GdipCloneBitmapAreaI Lib "gdiplus" (ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, ByVal newPixelFormat As GP_PixelFormat, ByVal hSrcBitmap As Long, ByRef hDstBitmap As Long) As GP_Result
 Private Declare Function GdipCloneMatrix Lib "gdiplus" (ByVal srcMatrix As Long, ByRef dstMatrix As Long) As GP_Result
 Private Declare Function GdipClonePath Lib "gdiplus" (ByVal srcPath As Long, ByRef dstPath As Long) As GP_Result
 Private Declare Function GdipCloneRegion Lib "gdiplus" (ByVal srcRegion As Long, ByRef dstRegion As Long) As GP_Result
@@ -431,8 +793,11 @@ Private Declare Function GdipCombineRegionRectI Lib "gdiplus" (ByVal hRegion As 
 Private Declare Function GdipCombineRegionRegion Lib "gdiplus" (ByVal dstRegion As Long, ByVal srcRegion As Long, ByVal dstCombineMode As GP_CombineMode) As GP_Result
 Private Declare Function GdipCombineRegionPath Lib "gdiplus" (ByVal dstRegion As Long, ByVal srcPath As Long, ByVal dstCombineMode As GP_CombineMode) As GP_Result
 
+'This EMF convert function only works on Vista+!
+Private Declare Function GdipConvertToEmfPlus Lib "gdiplus" (ByVal hGraphics As Long, ByVal srcMetafile As Long, ByRef conversionSuccess As Long, ByVal typeOfEMF As GP_MetafileType, ByVal ptrToMetafileDescription As Long, ByRef dstMetafilePtr As Long) As GP_Result
+
 Private Declare Function GdipCreateBitmapFromGdiDib Lib "gdiplus" (ByRef origGDIBitmapInfo As BITMAPINFO, ByRef srcBitmapData As Any, ByRef dstGdipBitmap As Long) As GP_Result
-Private Declare Function GdipCreateBitmapFromScan0 Lib "gdiplus" (ByVal bmpWidth As Long, ByVal bmpHeight As Long, ByVal bmpStride As Long, ByVal bmpPixelFormat As Long, ByRef Scan0 As Any, ByRef dstGdipBitmap As Long) As GP_Result
+Private Declare Function GdipCreateBitmapFromScan0 Lib "gdiplus" (ByVal bmpWidth As Long, ByVal bmpHeight As Long, ByVal bmpStride As Long, ByVal bmpPixelFormat As GP_PixelFormat, ByRef Scan0 As Any, ByRef dstGdipBitmap As Long) As GP_Result
 Private Declare Function GdipCreateFromHDC Lib "gdiplus" (ByVal hDC As Long, ByRef dstGraphics As Long) As GP_Result
 Private Declare Function GdipCreateHatchBrush Lib "gdiplus" (ByVal bHatchStyle As GP_PatternStyle, ByVal bForeColor As Long, ByVal bBackColor As Long, ByRef dstBrush As Long) As GP_Result
 Private Declare Function GdipCreateImageAttributes Lib "gdiplus" (ByRef dstImageAttributes As Long) As GP_Result
@@ -497,6 +862,12 @@ Private Declare Function GdipFillRectangleI Lib "gdiplus" (ByVal hGraphics As Lo
 
 Private Declare Function GdipGetClip Lib "gdiplus" (ByVal hGraphics As Long, ByRef dstRegion As Long) As GP_Result
 Private Declare Function GdipGetCompositingQuality Lib "gdiplus" (ByVal hGraphics As Long, ByRef dstCompositingQuality As GP_CompositingQuality) As GP_Result
+Private Declare Function GdipGetImageHeight Lib "gdiplus" (ByVal hImage As Long, ByRef dstHeight As Long) As GP_Result
+Private Declare Function GdipGetImageHorizontalResolution Lib "gdiplus" (ByVal hImage As Long, ByRef dstHResolution As Single) As GP_Result
+Private Declare Function GdipGetImagePixelFormat Lib "gdiplus" (ByVal hImage As Long, ByRef dstPixelFormat As GP_PixelFormat) As GP_Result
+Private Declare Function GdipGetImageType Lib "gdiplus" (ByVal srcImage As Long, ByRef dstImageType As GP_ImageType) As GP_Result
+Private Declare Function GdipGetImageVerticalResolution Lib "gdiplus" (ByVal hImage As Long, ByRef dstVResolution As Single) As GP_Result
+Private Declare Function GdipGetImageWidth Lib "gdiplus" (ByVal hImage As Long, ByRef dstWidth As Long) As GP_Result
 Private Declare Function GdipGetInterpolationMode Lib "gdiplus" (ByVal hGraphics As Long, ByRef dstInterpolationMode As GP_InterpolationMode) As GP_Result
 Private Declare Function GdipGetPathFillMode Lib "gdiplus" (ByVal hPath As Long, ByRef dstFillRule As GP_FillMode) As GP_Result
 Private Declare Function GdipGetPathWorldBounds Lib "gdiplus" (ByVal hPath As Long, ByRef dstBounds As RECTF, ByVal tmpTransformMatrix As Long, ByVal tmpPenHandle As Long) As GP_Result
@@ -511,6 +882,8 @@ Private Declare Function GdipGetPenMiterLimit Lib "gdiplus" (ByVal hPen As Long,
 Private Declare Function GdipGetPenMode Lib "gdiplus" (ByVal hPen As Long, ByRef dstPenMode As GP_PenAlignment) As GP_Result
 Private Declare Function GdipGetPenWidth Lib "gdiplus" (ByVal hPen As Long, ByRef dstWidth As Single) As GP_Result
 Private Declare Function GdipGetPixelOffsetMode Lib "gdiplus" (ByVal hGraphics As Long, ByRef dstMode As GP_PixelOffsetMode) As GP_Result
+Private Declare Function GdipGetPropertyItem Lib "gdiplus" (ByVal hImage As Long, ByVal gpPropertyID As Long, ByVal srcPropertySize As Long, ByVal ptrToDstBuffer As Long) As GP_Result
+Private Declare Function GdipGetPropertyItemSize Lib "gdiplus" (ByVal hImage As Long, ByVal gpPropertyID As Long, ByRef dstPropertySize As Long) As GP_Result
 Private Declare Function GdipGetRegionBounds Lib "gdiplus" (ByVal hRegion As Long, ByVal hGraphics As Long, ByRef dstRectF As RECTF) As GP_Result
 Private Declare Function GdipGetRegionBoundsI Lib "gdiplus" (ByVal hRegion As Long, ByVal hGraphics As Long, ByRef dstRectL As RECTL) As GP_Result
 Private Declare Function GdipGetRenderingOrigin Lib "gdiplus" (ByVal hGraphics As Long, ByRef dstX As Long, ByRef dstY As Long) As GP_Result
@@ -518,6 +891,8 @@ Private Declare Function GdipGetSmoothingMode Lib "gdiplus" (ByVal hGraphics As 
 Private Declare Function GdipGetSolidFillColor Lib "gdiplus" (ByVal hBrush As Long, ByRef dstColor As Long) As GP_Result
 Private Declare Function GdipGetTextureWrapMode Lib "gdiplus" (ByVal hBrush As Long, ByRef dstWrapMode As GP_WrapMode) As GP_Result
 
+Private Declare Function GdipGetImageRawFormat Lib "gdiplus" (ByVal hImage As Long, ByVal ptrToDstGuid As Long) As GP_Result
+Private Declare Function GdipImageRotateFlip Lib "gdiplus" (ByVal hImage As Long, ByVal rotateFlipType As GP_RotateFlip) As GP_Result
 Private Declare Function GdipInvertMatrix Lib "gdiplus" (ByVal hMatrix As Long) As GP_Result
 
 Private Declare Function GdipIsEmptyRegion Lib "gdiplus" (ByVal srcRegion As Long, ByVal srcGraphics As Long, ByRef dstResult As Long) As GP_Result
@@ -528,6 +903,8 @@ Private Declare Function GdipIsOutlineVisiblePathPoint Lib "gdiplus" (ByVal hPat
 Private Declare Function GdipIsOutlineVisiblePathPointI Lib "gdiplus" (ByVal hPath As Long, ByVal x As Long, ByVal y As Long, ByVal hPen As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
 Private Declare Function GdipIsVisiblePathPoint Lib "gdiplus" (ByVal hPath As Long, ByVal x As Single, ByVal y As Single, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
 Private Declare Function GdipIsVisiblePathPointI Lib "gdiplus" (ByVal hPath As Long, ByVal x As Long, ByVal y As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
+
+Private Declare Function GdipLoadImageFromFile Lib "gdiplus" (ByVal ptrSrcFilename As Long, ByRef dstGdipImage As Long) As GP_Result
 
 Private Declare Function GdipResetClip Lib "gdiplus" (ByVal hGraphics As Long) As GP_Result
 Private Declare Function GdipResetPath Lib "gdiplus" (ByVal hPath As Long) As GP_Result
@@ -580,7 +957,10 @@ Private Declare Function CopyMemory_Strict Lib "kernel32" Alias "RtlMoveMemory" 
 Private Declare Function FreeLibrary Lib "kernel32" (ByVal hLibModule As Long) As Long
 Private Declare Function GetProcAddress Lib "kernel32" (ByVal hModule As Long, ByVal lpProcName As String) As Long
 Private Declare Function LoadLibrary Lib "kernel32" Alias "LoadLibraryW" (ByVal lpLibFileName As Long) As Long
+Private Declare Function lstrlenA Lib "kernel32" (ByVal ptrToString As Long) As Long
 Private Declare Function OleTranslateColor Lib "olepro32" (ByVal oColor As OLE_COLOR, ByVal hPalette As Long, ByRef cColorRef As Long) As Long
+Private Declare Function StringFromCLSID Lib "ole32" (ByVal ptrToGuid As Long, ByRef ptrToDstString As Long) As Long
+Private Declare Function SysAllocStringByteLen Lib "oleaut32" (ByVal srcAnsiPtr As Long, ByVal srcLength As Long) As String
 
 'Internally cached values:
 
@@ -861,7 +1241,7 @@ Public Function GetGdipBitmapHandleFromDIB(ByRef dstBitmapHandle As Long, ByRef 
     If (srcDIB Is Nothing) Then Exit Function
     
     If (srcDIB.GetDIBColorDepth = 32) Then
-        GetGdipBitmapHandleFromDIB = CBool(GdipCreateBitmapFromScan0(srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, srcDIB.GetDIBWidth * 4, PixelFormat32bppPARGB, ByVal srcDIB.GetDIBPointer, dstBitmapHandle) = GP_OK)
+        GetGdipBitmapHandleFromDIB = CBool(GdipCreateBitmapFromScan0(srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, srcDIB.GetDIBWidth * 4, GP_PF_32bppPARGB, ByVal srcDIB.GetDIBPointer, dstBitmapHandle) = GP_OK)
     Else
     
         'Use GdipCreateBitmapFromGdiDib for 24bpp DIBs
@@ -1600,6 +1980,181 @@ Public Function GDIPlus_GraphicsSetCompositingMode(ByVal dstGraphics As Long, Op
     tmpReturn = GdipSetCompositingMode(dstGraphics, newCompositeMode)
     GDIPlus_GraphicsSetCompositingMode = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_ImageCreateFromFile(ByVal srcFilename As String, Optional ByRef isImageMetafile As Boolean = False) As Long
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipLoadImageFromFile(StrPtr(srcFilename), GDIPlus_ImageCreateFromFile)
+    If (tmpReturn = GP_OK) Then
+        Dim imgType As GP_ImageType
+        GdipGetImageType GDIPlus_ImageCreateFromFile, imgType
+        isImageMetafile = CBool(imgType = GP_IT_Metafile)
+    Else
+        InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+    End If
+End Function
+
+'This function only works on bitmaps (never metafiles!), and the source image *must* already be in 32-bpp format.
+Public Function GDIPlus_ImageForcePremultipliedAlpha(ByVal hImage As Long, ByVal imgWidth As Long, ByVal imgHeight As Long) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipCloneBitmapAreaI(0, 0, imgWidth, imgHeight, GP_PF_32bppPARGB, hImage, hImage)
+    GDIPlus_ImageForcePremultipliedAlpha = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+'RANDOM FACT! GdipGetImageDimension works fine on bitmaps.  On metafiles, it returns bizarre values that may be
+' astronomically large.  I assume that metafile dimensions are not necessarily returned in pixels (though pixels
+' are the default for bitmaps...?).  Anyway, to avoid this problem, we only use GdipGetImageWidth/Height, which
+' always return "correct" pixel values.
+Public Function GDIPlus_ImageGetDimensions(ByVal hImage As Long, ByRef dstWidth As Long, ByRef dstHeight As Long) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipGetImageWidth(hImage, dstWidth)
+    If (tmpReturn = GP_OK) Then
+        tmpReturn = GdipGetImageHeight(hImage, dstHeight)
+        GDIPlus_ImageGetDimensions = CBool(tmpReturn = GP_OK)
+    Else
+        GDIPlus_ImageGetDimensions = False
+    End If
+End Function
+
+Public Function GDIPlus_ImageGetFileFormat(ByVal hImage As Long) As PD_2D_FileFormat
+    GDIPlus_ImageGetFileFormat = GetPd2dFileFormatFromGUID(GDIPlus_ImageGetFileFormatGUID(hImage))
+End Function
+
+Public Function GDIPlus_ImageGetFileFormatGUID(ByVal hImage As Long) As String
+    
+    Dim tmpReturn As GP_Result
+    
+    'Start by retrieving the raw bytes of the GUID
+    Dim guidBytes() As Byte
+    ReDim guidBytes(0 To 15) As Byte
+    tmpReturn = GdipGetImageRawFormat(hImage, VarPtr(guidBytes(0)))
+    
+    If (tmpReturn = GP_OK) Then
+    
+        'Byte array comparisons against predefined constants are messy in VB, so retrieve a string instead
+        Dim imgStringPointer As Long
+        StringFromCLSID VarPtr(guidBytes(0)), imgStringPointer
+        GDIPlus_ImageGetFileFormatGUID = SysAllocStringByteLen(imgStringPointer, lstrlenA(imgStringPointer))
+        
+    Else
+        GDIPlus_ImageGetFileFormatGUID = GP_FF_GUID_Undefined
+        InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+    End If
+    
+End Function
+
+'Given a GDI+ GUID format identifier, return a Long-type pd2D file format identifier
+Private Function GetPd2dFileFormatFromGUID(ByRef srcGUID As String) As PD_2D_FileFormat
+    Select Case srcGUID
+        Case GP_FF_GUID_BMP, GP_FF_GUID_MemoryBMP
+            GetPd2dFileFormatFromGUID = P2_FF_BMP
+        Case GP_FF_GUID_EMF
+            GetPd2dFileFormatFromGUID = P2_FF_EMF
+        Case GP_FF_GUID_WMF
+            GetPd2dFileFormatFromGUID = P2_FF_WMF
+        Case GP_FF_GUID_JPEG
+            GetPd2dFileFormatFromGUID = P2_FF_JPEG
+        Case GP_FF_GUID_PNG
+            GetPd2dFileFormatFromGUID = P2_FF_PNG
+        Case GP_FF_GUID_GIF
+            GetPd2dFileFormatFromGUID = P2_FF_GIF
+        Case GP_FF_GUID_TIFF
+            GetPd2dFileFormatFromGUID = P2_FF_TIFF
+        Case GP_FF_GUID_Icon
+            GetPd2dFileFormatFromGUID = P2_FF_ICO
+        Case Else
+            GetPd2dFileFormatFromGUID = P2_FF_Undefined
+    End Select
+End Function
+
+Public Function GDIPlus_ImageGetPixelFormat(ByVal hImage As Long) As GP_PixelFormat
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipGetImagePixelFormat(hImage, GDIPlus_ImageGetPixelFormat)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+'It's important to check the return value of this function; it will be FALSE if the image does not
+' contain/provide the requested property.  Also note that all properties are returned as byte arrays.
+' It is up to the caller to make sense of this return, presumably using the MSDN guide at
+' https://msdn.microsoft.com/en-us/library/ms534416(v=vs.85).aspx
+Public Function GDIPlus_ImageGetProperty(ByVal hImage As Long, ByVal gpPropertyID As GP_PropertyTag, ByRef dstBuffer() As Byte) As Boolean
+    
+    Dim tmpReturn As GP_Result, propSize As Long
+    tmpReturn = GdipGetPropertyItemSize(hImage, gpPropertyID, propSize)
+    If (tmpReturn = GP_OK) Then
+    
+        If (propSize > 0) Then
+            ReDim dstBuffer(0 To propSize - 1) As Byte
+            tmpReturn = GdipGetPropertyItem(hImage, gpPropertyID, propSize, VarPtr(dstBuffer(0)))
+            If (tmpReturn = GP_OK) Then
+                GDIPlus_ImageGetProperty = True
+            Else
+                InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+                GDIPlus_ImageGetProperty = False
+            End If
+        Else
+            GDIPlus_ImageGetProperty = False
+        End If
+        
+    Else
+        InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+        GDIPlus_ImageGetProperty = False
+    End If
+    
+End Function
+
+Public Function GDIPlus_ImageGetResolution(ByVal hImage As Long, ByRef dstHResolution As Single, ByRef dstVResolution As Single) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipGetImageHorizontalResolution(hImage, dstHResolution)
+    If (tmpReturn = GP_OK) Then
+        tmpReturn = GdipGetImageVerticalResolution(hImage, dstVResolution)
+        GDIPlus_ImageGetResolution = CBool(tmpReturn = GP_OK)
+    Else
+        GDIPlus_ImageGetResolution = False
+    End If
+End Function
+
+Public Function GDIPlus_ImageLockBits(ByVal hImage As Long, ByRef srcRect As RECTL, ByRef srcCopyData As GP_BitmapData, ByVal lockFlags As GP_BitmapLockMode, ByVal dstPixelFormat As GP_PixelFormat) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipBitmapLockBits(hImage, srcRect, lockFlags, dstPixelFormat, srcCopyData)
+    GDIPlus_ImageLockBits = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_ImageRotateFlip(ByVal hImage As Long, ByVal typeOfRotateFlip As GP_RotateFlip) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipImageRotateFlip(hImage, typeOfRotateFlip)
+    GDIPlus_ImageRotateFlip = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+Public Function GDIPlus_ImageUnlockBits(ByVal hImage As Long, ByRef srcCopyData As GP_BitmapData) As Boolean
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipBitmapUnlockBits(hImage, srcCopyData)
+    GDIPlus_ImageUnlockBits = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+'Convert an EMF or WMF to the new EMF+ format.  Note that this is done in-memory, and the source file is not touched.
+' Conversion allows us to render the metafile with antialiasing, alpha bytes, and more.
+' REQUIRES GDI+ v1.1 (Win 7 or later only; conditionally available on Vista if explicitly requested via manifest)
+'
+'If successful, this function will generate a new handle.  It *must* be freed separately from the old handle!
+Public Function GDIPlus_ImageUpgradeMetafile(ByVal hImage As Long, ByVal srcGraphicsForConvertSettings As Long, ByRef dstNewMetafile As Long) As Boolean
+    
+    dstNewMetafile = 0
+    
+    Dim convertSuccessful As Long, tmpReturn As GP_Result
+    tmpReturn = GdipConvertToEmfPlus(srcGraphicsForConvertSettings, hImage, convertSuccessful, GP_MT_EmfPlus, 0&, dstNewMetafile)
+    
+    If (tmpReturn = GP_OK) Then
+        GDIPlus_ImageUpgradeMetafile = CBool(convertSuccessful <> 0)
+    Else
+        GDIPlus_ImageUpgradeMetafile = False
+        InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+    End If
+    
 End Function
 
 Public Function GDIPlus_MatrixCreate() As Long
