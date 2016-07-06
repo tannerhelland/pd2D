@@ -3,7 +3,7 @@ Begin VB.Form frmSample
    Appearance      =   0  'Flat
    BackColor       =   &H80000005&
    Caption         =   "pd2D Sample Project -- github.com/tannerhelland/pd2D"
-   ClientHeight    =   8190
+   ClientHeight    =   7680
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   14325
@@ -18,19 +18,10 @@ Begin VB.Form frmSample
       Strikethrough   =   0   'False
    EndProperty
    LinkTopic       =   "Form1"
-   ScaleHeight     =   546
+   ScaleHeight     =   512
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   955
    StartUpPosition =   3  'Windows Default
-   Begin VB.CommandButton cmdTest 
-      Caption         =   "Go!"
-      Height          =   615
-      Index           =   2
-      Left            =   600
-      TabIndex        =   17
-      Top             =   5160
-      Width           =   3615
-   End
    Begin VB.CheckBox chkTest2Curvature 
       BackColor       =   &H80000005&
       Caption         =   "also randomize curvature"
@@ -73,7 +64,7 @@ Begin VB.Form frmSample
       Height          =   615
       Left            =   600
       TabIndex        =   10
-      Top             =   7440
+      Top             =   6960
       Width           =   3615
    End
    Begin VB.CheckBox chkTest1Complete 
@@ -97,17 +88,17 @@ Begin VB.Form frmSample
    Begin VB.CommandButton cmdTest 
       Caption         =   "Stop!"
       Height          =   615
-      Index           =   3
+      Index           =   2
       Left            =   600
       TabIndex        =   6
-      Top             =   6360
+      Top             =   5880
       Width           =   3615
    End
    Begin VB.Timer tmrSample 
       Enabled         =   0   'False
       Interval        =   16
-      Left            =   3840
-      Top             =   120
+      Left            =   120
+      Top             =   7080
    End
    Begin VB.CommandButton cmdTest 
       Caption         =   "Go!"
@@ -132,33 +123,14 @@ Begin VB.Form frmSample
          Strikethrough   =   0   'False
       EndProperty
       ForeColor       =   &H80000008&
-      Height          =   7440
+      Height          =   6960
       Left            =   4320
-      ScaleHeight     =   494
+      ScaleHeight     =   462
       ScaleMode       =   3  'Pixel
       ScaleWidth      =   652
       TabIndex        =   1
       Top             =   600
       Width           =   9810
-   End
-   Begin VB.Label lblTitle 
-      BackStyle       =   0  'Transparent
-      Caption         =   "animated compass"
-      BeginProperty Font 
-         Name            =   "Segoe UI"
-         Size            =   12
-         Charset         =   0
-         Weight          =   400
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      Height          =   315
-      Index           =   6
-      Left            =   360
-      TabIndex        =   16
-      Top             =   4800
-      Width           =   3810
    End
    Begin VB.Label lblTitle 
       BackStyle       =   0  'Transparent
@@ -195,7 +167,7 @@ Begin VB.Form frmSample
       Index           =   4
       Left            =   360
       TabIndex        =   9
-      Top             =   7080
+      Top             =   6600
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -214,7 +186,7 @@ Begin VB.Form frmSample
       Index           =   3
       Left            =   360
       TabIndex        =   5
-      Top             =   6000
+      Top             =   5520
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -283,10 +255,10 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '***************************************************************************
-'pd2D Basic Sample Project
+'pd2D Basic Raster (Bitmap) Sample Project
 'Copyright 2016 by Tanner Helland
-'Created: 22/June/16
-'Last updated: 23/June/16
+'Created: 01/July/16
+'Last updated: 01/July/16
 'Last update: continued work on initial build
 '
 'This small form should help you "hit the ground running" when it comes to pd2D capabilities.  Here's what you
@@ -374,11 +346,10 @@ Private Enum PD_2D_Tests
     NoTestRunning = -1
     Test1_SplineDemo = 0
     Test2_PolygonDemo = 1
-    Test3_CompassDemo = 2
 End Enum
 
 #If False Then
-    Private Const NoTestRunning = -1, Test1_SplineDemo = 0, Test2_PolygonDemo = 1, Test3_CompassDemo = 2
+    Private Const NoTestRunning = -1, Test1_SplineDemo = 0, Test2_PolygonDemo = 1
 #End If
 
 'This is the test we're currently running (if any).  The "tmrSample" timer relies on this to know what animation
@@ -398,13 +369,6 @@ Private Const WAVE_PRIMARY_PEN_WIDTH As Single = 2.5
 Private Const WAVE_SECONDARY_PEN_WIDTH As Single = 0.5
 Private Const WAVE_AMP_ADJUSTMENT As Single = 0.005
 Private m_WavePhase As Single, m_WaveAmplitude As Single, m_TargetAmplitude As Single
-
-'For the compass demo, we use the API to grab the current position of the mouse cursor, in screen coordinates.
-' We also use the API to correctly note the center of the sample picture box, in screen coordinates
-Private m_CompassCenterScreen As POINTLONG, m_CompassCenterClient As POINTFLOAT, m_CompassRadius As Single
-Private m_CompassLinesThick As pd2DPath, m_CompassLinesThin As pd2DPath, m_CompassArrow As pd2DPath
-Private Declare Function GetCursorPos Lib "user32" (ByRef dstPointL As POINTLONG) As Long
-Private Declare Function ClientToScreen Lib "user32" (ByVal srcHWnd As Long, ByRef targetPoint As POINTLONG) As Long
 
 Private m_Test1UseLines As Boolean, m_Test1DontCloseShape As Boolean
 Private m_Test2UseCurvature As Boolean
@@ -552,21 +516,7 @@ Private Sub cmdTest_Click(Index As Integer)
             
             'Start the animation timer!
             tmrSample.Enabled = True
-        
-        Case Test3_CompassDemo
-        
-            'Store the center coordinates of the sample picture box (in screen coordinates)
-            m_CompassCenterScreen.x = picOutput.ScaleWidth / 2
-            m_CompassCenterScreen.y = picOutput.ScaleHeight / 2
-            ClientToScreen picOutput.hWnd, m_CompassCenterScreen
             
-            'We're also going to create the initial "compass" image(s); once created, we only have to transform these,
-            ' not re-create them from scratch.
-            Test3InitializeCompass
-            
-            'Start the animation timer!
-            tmrSample.Enabled = True
-        
         Case Else
             m_ActiveTest = NoTestRunning
             tmrSample.Enabled = False
@@ -591,72 +541,6 @@ Private Sub Test2RandomizePolygon(ByRef dstPolygon As AnimatedPolygon, ByVal pol
         Set .PolygonTransform = New pd2DTransform
         .PolygonTransform.Reset
     End With
-End Sub
-
-Private Sub Test3InitializeCompass()
-    
-    'Start by finding the smallest dimension of the output picture box.  We'll use this to define the "radius" of our compass.
-    If (picOutput.ScaleWidth < picOutput.ScaleHeight) Then m_CompassRadius = picOutput.ScaleWidth / 2 Else m_CompassRadius = picOutput.ScaleHeight / 2
-    m_CompassRadius = m_CompassRadius - 1
-    
-    m_CompassCenterClient.x = picOutput.ScaleWidth / 2
-    m_CompassCenterClient.y = picOutput.ScaleHeight / 2
-    
-    Set m_CompassArrow = New pd2DPath
-    
-    'The arrow image is easiest: just a small arrow, pointing at angle 0
-    Dim arrowPoints() As Double
-    ReDim arrowPoints(0 To 5) As Double
-    DrawingMath.ConvertPolarToCartesian 0#, m_CompassRadius - 1#, arrowPoints(0), arrowPoints(1), m_CompassCenterClient.x, m_CompassCenterClient.y, False
-    DrawingMath.ConvertPolarToCartesian -3#, m_CompassRadius - 12#, arrowPoints(2), arrowPoints(3), m_CompassCenterClient.x, m_CompassCenterClient.y, False
-    DrawingMath.ConvertPolarToCartesian 3#, m_CompassRadius - 12#, arrowPoints(4), arrowPoints(5), m_CompassCenterClient.x, m_CompassCenterClient.y, False
-    With m_CompassArrow
-        .AddTriangle arrowPoints(0), arrowPoints(1), arrowPoints(2), arrowPoints(3), arrowPoints(4), arrowPoints(5)
-    End With
-    
-    'To ensure that our arrow sits "outside" the compass lines, shrink the compass radius by the arrow's size (plus some padding)
-    m_CompassRadius = m_CompassRadius - (12# + 10#)
-    
-    'Compass lines themselves are a bit more complicated; we're basically going to use polar coordinates to simplify their creation
-    Set m_CompassLinesThick = New pd2DPath
-    Set m_CompassLinesThin = New pd2DPath
-    
-    Dim lineX1 As Double, lineY1 As Double, lineX2 As Double, lineY2 As Double
-    Dim lineLengthThick As Single, lineLengthThin As Single
-    lineLengthThick = m_CompassRadius * 0.35
-    lineLengthThin = m_CompassRadius * 0.3
-    
-    Dim i As Long, j As Long
-    For i = 0 To 359 Step 30
-        DrawingMath.ConvertPolarToCartesian i, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
-        DrawingMath.ConvertPolarToCartesian i, m_CompassRadius - lineLengthThick, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
-        
-        'Normally, a path object auto-connects neighboring figures.  To prevent this, we clearly mark each line as an
-        ' independent figure, which prevents the auto-connect behavior.
-        m_CompassLinesThick.StartNewFigure
-        m_CompassLinesThick.AddLine lineX1, lineY1, lineX2, lineY2
-        m_CompassLinesThick.CloseCurrentFigure
-        
-        'While here, let's also fill-in the thin compass lines.  These are important for demonstrating the benefits of antialiasing.
-        For j = i To i + 29 Step 3
-            DrawingMath.ConvertPolarToCartesian j, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
-            DrawingMath.ConvertPolarToCartesian j, m_CompassRadius - lineLengthThin, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
-            m_CompassLinesThin.StartNewFigure
-            m_CompassLinesThin.AddLine lineX1, lineY1, lineX2, lineY2
-            m_CompassLinesThin.CloseCurrentFigure
-        Next j
-        
-    Next i
-    
-    'Finally, let's add a small cross in the center of the compass, to help orient the user
-    m_CompassLinesThin.StartNewFigure
-    m_CompassLinesThin.AddLine m_CompassCenterClient.x - lineLengthThin / 2, m_CompassCenterClient.y, m_CompassCenterClient.x + lineLengthThin / 2, m_CompassCenterClient.y
-    m_CompassLinesThin.CloseCurrentFigure
-    
-    m_CompassLinesThin.StartNewFigure
-    m_CompassLinesThin.AddLine m_CompassCenterClient.x, m_CompassCenterClient.y - lineLengthThin / 2, m_CompassCenterClient.x, m_CompassCenterClient.y + lineLengthThin / 2
-    m_CompassLinesThin.CloseCurrentFigure
-    
 End Sub
 
 'During animated demonstrations, this sample timer will perform animation tasks (like moving polygon points around).
@@ -867,42 +751,7 @@ Private Sub tmrSample_Timer()
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
             ' refresh the picture box after performing the copy operation.)
             m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
-        
-        Case Test3_CompassDemo
-        
-            'Grab the current mouse cursor position, in screen coordinates
-            Dim mousePosition As POINTLONG
-            GetCursorPos mousePosition
             
-            'Calculate the angle between the mouse position and the center of the output picture box
-            Dim compassAngle As Single
-            compassAngle = DrawingMath.Atan2(mousePosition.y - m_CompassCenterScreen.y, mousePosition.x - m_CompassCenterScreen.x)
-            compassAngle = DrawingMath.RadiansToDegrees(compassAngle)
-            
-            'Create a transformation object that describes this angle
-            Dim cTransform As pd2DTransform
-            Set cTransform = New pd2DTransform
-            cTransform.ApplyRotation compassAngle, m_CompassCenterClient.x, m_CompassCenterClient.y
-            
-            'Clear the current back buffer image
-            m_BackBuffer.EraseSurfaceContents 0, 0
-            
-            'Render the compass arrow, with this rotation applied
-            Drawing2D.QuickCreateSolidBrush cBrush, vbRed, 100#
-            m_Painter.FillPath_Transformed m_BackBuffer, cBrush, m_CompassArrow, cTransform
-            
-            'Render the compass lines, also with this rotation applied
-            Drawing2D.QuickCreateSolidPen cPen, 2.5, vbWhite
-            m_Painter.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThick, cTransform
-            
-            Drawing2D.QuickCreateSolidPen cPen, 0.6, vbWhite, 50#
-            m_Painter.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThin, cTransform
-            
-            'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
-            ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
-            ' refresh the picture box after performing the copy operation.)
-            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
-        
         Case Else
     
     End Select

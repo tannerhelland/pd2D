@@ -326,6 +326,19 @@ Public Function DrawPath(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPe
     End If
 End Function
 
+'Helper function; the source path is silently cloned and transformed, leaving the original path untouched
+Public Function DrawPath_Transformed(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByRef srcPath As pd2DPath, ByRef srcTransform As pd2DTransform) As Boolean
+    If VerifyDrawBackends(dstSurface, srcPen) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                Dim tmpPath As pd2DPath: Set tmpPath = New pd2DPath
+                tmpPath.CloneExistingPath srcPath
+                tmpPath.ApplyTransformation srcTransform
+                DrawPath_Transformed = GDI_Plus.GDIPlus_DrawPath(dstSurface.GetHandle, srcPen.GetHandle, tmpPath.GetHandle)
+        End Select
+    End If
+End Function
+
 Public Function DrawPolygonF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
     If VerifyDrawBackends(dstSurface, srcPen) Then
         Select Case dstSurface.GetSurfaceBackend
@@ -435,6 +448,19 @@ Public Function FillPath(ByRef dstSurface As pd2DSurface, ByRef srcBrush As pd2D
         Select Case dstSurface.GetSurfaceBackend
             Case P2_DefaultBackend, P2_GDIPlusBackend
                 FillPath = GDI_Plus.GDIPlus_FillPath(dstSurface.GetHandle, srcBrush.GetHandle, srcPath.GetHandle)
+        End Select
+    End If
+End Function
+
+'Helper function; the source path is silently cloned and transformed, leaving the original path untouched
+Public Function FillPath_Transformed(ByRef dstSurface As pd2DSurface, ByRef srcBrush As pd2DBrush, ByRef srcPath As pd2DPath, ByRef srcTransform As pd2DTransform) As Boolean
+    If VerifyFillBackends(dstSurface, srcBrush) Then
+        Select Case dstSurface.GetSurfaceBackend
+            Case P2_DefaultBackend, P2_GDIPlusBackend
+                Dim tmpPath As pd2DPath: Set tmpPath = New pd2DPath
+                tmpPath.CloneExistingPath srcPath
+                tmpPath.ApplyTransformation srcTransform
+                FillPath_Transformed = GDI_Plus.GDIPlus_FillPath(dstSurface.GetHandle, srcBrush.GetHandle, tmpPath.GetHandle)
         End Select
     End If
 End Function
