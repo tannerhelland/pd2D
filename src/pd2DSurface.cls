@@ -329,12 +329,12 @@ End Function
 ' fully qualified paths, not relative ones.
 '
 'Supported formats include: BMP, GIF, JPEG, PNG, TIFF, WMF, and EMF.  For best results, load images on Vista or later; XP has some
-' limitations beyond our control.
+' limitations beyond our control.  (This is mainly a concern with esoteric formats, like CMYK JPEGs.)
 '
 'Extra parameters include:
-' 1) fixJPEGOrientation: if the source file contains an orientation tag (like most smartphone photos), this function can automatically
-'                        rotate the image to match.  This is the default behavior, and should generally be disabled only if the source
-'                        file knowingly contains faulty EXIF data.
+' 1) fixJPEGOrientation: if the source file contains an orientation tag (like photos coming from smartphones), this function can
+'                        automatically rotate the image to match.  This is the default behavior, and should generally be disabled
+'                        only if the source file contains faulty EXIF data.
 Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVal fixJPEGOrientation As Boolean = True) As Boolean
     
     If (m_SurfaceHandle <> 0) Then ReleaseSurface
@@ -348,6 +348,9 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
             'To simplify handling of surface(s) created from file, we are only going to lean on GDI+ for the initial image
             ' file parsing.  Once the image is loaded, we will transfer it to an internally managed DIB; this frees us from
             ' obnoxious GDI+ constraints (like being forced to maintain file access for the lifetime of the image object).
+            '
+            'One downside of this approach is that metafiles will be forcibly rasterized.  This behavior could be "fixed"
+            ' in a future release, but knowing all surfaces are raster-type saves us a lot of trouble, frankly.
             
             'Start by using GDI+ to load the file into a GDI+ container.
             Dim hGdipImage As Long, isImageMetafile As Boolean
@@ -400,13 +403,15 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
                         
                         Dim tmpGraphics As Long
                         tmpGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(tmpSettingsDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_Half)
-                            
+                        
                         'Attempt to convert the EMF to EMF+ format
                         Dim newImageHandle As Long
                         If GDI_Plus.GDIPlus_ImageUpgradeMetafile(hGdipImage, tmpGraphics, newImageHandle) Then
                             emfPlusConversionSuccessful = True
                             GDI_Plus.ReleaseGDIPlusImage hGdipImage
                             hGdipImage = newImageHandle
+                        Else
+                            InternalError "Metafile upgrade failed", "Could not convert old-style WMF or EMF to new EMF+ format"
                         End If
                         
                         'Release all the temporary objects we created for the conversion
@@ -454,6 +459,8 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
                 hasAlpha = CBool((imgPixelFormat And GP_PF_Alpha) <> 0) Or CBool((imgPixelFormat And GP_PF_PreMultAlpha) <> 0)
                 
                 'Metafiles require special handling on Vista and earlier
+                Set m_SurfaceDIB = New pd2DDIB
+                
                 If isImageMetafile Then
                     If emfPlusConversionSuccessful Or hasAlpha Then
                         m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 32, 0, 0
@@ -501,7 +508,7 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
                 '24-bpp images can be rendered directly onto our internal DIB
                 Else
                     Dim hGraphics As Long
-                    GDI_Plus.GetGDIPlusGraphicsFromDC m_SurfaceDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_None
+                    hGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_None)
                     CreateSurfaceFromFile = GDI_Plus.GDIPlus_DrawImageRectI(hGraphics, hGdipImage, 0, 0, imgWidth, imgHeight)
                     GDI_Plus.ReleaseGDIPlusGraphics hGraphics
                 End If
@@ -708,7 +715,7 @@ Public Function GetSurfaceHeight() As Long
             Case P2_SizeFromCaller
                 GetSurfaceHeight = m_SurfaceHeightCaller
             Case P2_SizeFromHWnd
-                If GDI.GetClientRectWrapper(m_SurfaceHWnd, VarPtr(m_ClientRect)) Then GetSurfaceHeight = m_ClientRect.Right
+                If GDI.GetClientRectWrapper(m_SurfaceHWnd, VarPtr(m_ClientRect)) Then GetSurfaceHeight = m_ClientRect.Bottom
             Case P2_SizeUnknown
                 m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
                 GetSurfaceHeight = m_SurfaceDCBitmap.Height
