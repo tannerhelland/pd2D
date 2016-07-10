@@ -71,7 +71,7 @@ Public Function StretchBltWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVa
 End Function
 
 Public Function GetClientRectWrapper(ByVal srcHWnd As Long, ByVal ptrToDestRect As Long) As Boolean
-    GetClientRectWrapper = CBool(GetClientRect(srcHWnd, ptrToRect) <> 0)
+    GetClientRectWrapper = CBool(GetClientRect(srcHWnd, ptrToDestRect) <> 0)
 End Function
 
 Public Function GetBitmapHeaderFromDC(ByVal srcDC As Long) As GDI_Bitmap

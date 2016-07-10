@@ -56,6 +56,37 @@ Public Sub ConvertPolarToCartesian(ByVal srcAngle As Double, ByVal srcRadius As 
 
 End Sub
 
+'Convert a width and height pair to a new width and height, while preserving aspect ratio.
+'
+'NOTE: by default, inclusive fitting is assumed, but the user can set that parameter to false.  Inclusive fitting
+'      leaves blank space around an image; exclusive fitting fills the entire destination area, but some cropping
+'      will occur if the aspect ratio of the destination object is different from the source.
+Public Sub FitSizeCorrectly(ByVal srcWidth As Long, ByVal srcHeight As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByRef newWidth As Long, ByRef newHeight As Long, Optional ByVal fitInclusive As Boolean = True)
+    
+    Dim srcAspect As Double, dstAspect As Double
+    If (srcHeight > 0) And (dstHeight > 0) Then
+        srcAspect = srcWidth / srcHeight
+        dstAspect = dstWidth / dstHeight
+    Else
+        Exit Sub
+    End If
+    
+    Dim aspectLarger As Boolean
+    aspectLarger = CBool(srcAspect > dstAspect)
+    
+    'Exclusive fitting fits the opposite dimension, so simply reverse the way the dimensions are calculated
+    If (Not fitInclusive) Then aspectLarger = Not aspectLarger
+    
+    If aspectLarger Then
+        newWidth = dstWidth
+        newHeight = CDbl(srcHeight / srcWidth) * newWidth
+    Else
+        newHeight = dstHeight
+        newWidth = CDbl(srcWidth / srcHeight) * newHeight
+    End If
+    
+End Sub
+
 'This is a modified modulo function; it handles negative values specially to ensure they work with certain distort functions
 Public Function Modulo(ByVal Quotient As Double, ByVal Divisor As Double) As Double
     Modulo = Quotient - Fix(Quotient / Divisor) * Divisor

@@ -958,8 +958,11 @@ Private Declare Function FreeLibrary Lib "kernel32" (ByVal hLibModule As Long) A
 Private Declare Function GetProcAddress Lib "kernel32" (ByVal hModule As Long, ByVal lpProcName As String) As Long
 Private Declare Function LoadLibrary Lib "kernel32" Alias "LoadLibraryW" (ByVal lpLibFileName As Long) As Long
 Private Declare Function lstrlenA Lib "kernel32" (ByVal ptrToString As Long) As Long
+Private Declare Function lstrlenW Lib "kernel32" (ByVal ptrToString As Long) As Long
 Private Declare Function OleTranslateColor Lib "olepro32" (ByVal oColor As OLE_COLOR, ByVal hPalette As Long, ByRef cColorRef As Long) As Long
+Private Declare Function PutMem4 Lib "msvbvm60" (ByVal ptrDst As Long, ByVal newValue As Long) As Long
 Private Declare Function StringFromCLSID Lib "ole32" (ByVal ptrToGuid As Long, ByRef ptrToDstString As Long) As Long
+Private Declare Function SysAllocString Lib "oleaut32" (ByVal srcWCharPtr As Long) As Long
 Private Declare Function SysAllocStringByteLen Lib "oleaut32" (ByVal srcAnsiPtr As Long, ByVal srcLength As Long) As String
 
 'Internally cached values:
@@ -2034,8 +2037,16 @@ Public Function GDIPlus_ImageGetFileFormatGUID(ByVal hImage As Long) As String
     
         'Byte array comparisons against predefined constants are messy in VB, so retrieve a string instead
         Dim imgStringPointer As Long
-        StringFromCLSID VarPtr(guidBytes(0)), imgStringPointer
-        GDIPlus_ImageGetFileFormatGUID = SysAllocStringByteLen(imgStringPointer, lstrlenA(imgStringPointer))
+        If (StringFromCLSID(VarPtr(guidBytes(0)), imgStringPointer) = 0) Then
+            Dim strLength As Long
+            strLength = lstrlenW(imgStringPointer)
+            If (strLength <> 0) Then
+                GDIPlus_ImageGetFileFormatGUID = String$(strLength, 48)
+                CopyMemory_Strict StrPtr(GDIPlus_ImageGetFileFormatGUID), imgStringPointer, strLength * 2
+            End If
+        Else
+            InternalGDIPlusError "Failed to convert CLSID to string", "GDIPlus_ImageGetFileFormatGUID failed"
+        End If
         
     Else
         GDIPlus_ImageGetFileFormatGUID = GP_FF_GUID_Undefined
@@ -2098,7 +2109,9 @@ Public Function GDIPlus_ImageGetProperty(ByVal hImage As Long, ByVal gpPropertyI
         End If
         
     Else
-        InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+        'NOTE: it's totally okay for an image to not have a given property.  This is not a meaningful error,
+        ' so we do not report it.
+        'InternalGDIPlusError vbNullString, vbNullString, tmpReturn
         GDIPlus_ImageGetProperty = False
     End If
     
@@ -2145,11 +2158,11 @@ Public Function GDIPlus_ImageUpgradeMetafile(ByVal hImage As Long, ByVal srcGrap
     
     dstNewMetafile = 0
     
-    Dim convertSuccessful As Long, tmpReturn As GP_Result
-    tmpReturn = GdipConvertToEmfPlus(srcGraphicsForConvertSettings, hImage, convertSuccessful, GP_MT_EmfPlus, 0&, dstNewMetafile)
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipConvertToEmfPlus(srcGraphicsForConvertSettings, hImage, ByVal 0&, GP_MT_EmfDual, 0&, dstNewMetafile)
     
     If (tmpReturn = GP_OK) Then
-        GDIPlus_ImageUpgradeMetafile = CBool(convertSuccessful <> 0)
+        GDIPlus_ImageUpgradeMetafile = True
     Else
         GDIPlus_ImageUpgradeMetafile = False
         InternalGDIPlusError vbNullString, vbNullString, tmpReturn

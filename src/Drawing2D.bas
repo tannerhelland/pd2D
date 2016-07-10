@@ -466,6 +466,29 @@ Public Function ExtractBlue(ByVal srcColor As Long) As Integer
     ExtractBlue = (srcColor \ 65536) And 255
 End Function
 
+Public Function GetNameOfFileFormat(ByVal srcFormat As PD_2D_FileFormat) As String
+    Select Case srcFormat
+        Case P2_FF_BMP
+            GetNameOfFileFormat = "BMP"
+        Case P2_FF_ICO
+            GetNameOfFileFormat = "Icon"
+        Case P2_FF_JPEG
+            GetNameOfFileFormat = "JPEG"
+        Case P2_FF_GIF
+            GetNameOfFileFormat = "GIF"
+        Case P2_FF_PNG
+            GetNameOfFileFormat = "PNG"
+        Case P2_FF_TIFF
+            GetNameOfFileFormat = "TIFF"
+        Case P2_FF_WMF
+            GetNameOfFileFormat = "WMF"
+        Case P2_FF_EMF
+            GetNameOfFileFormat = "EMF"
+        Case Else
+            GetNameOfFileFormat = "Unknown file format"
+    End Select
+End Function
+
 'Shortcut function for creating a generic painter
 Public Function QuickCreatePainter(ByRef dstPainter As pd2DPainter) As Boolean
     If (dstPainter Is Nothing) Then Set dstPainter = New pd2DPainter
@@ -493,12 +516,20 @@ Public Function QuickCreateBlankSurface(ByRef dstSurface As pd2DSurface, ByVal s
 End Function
 
 'Shortcut function for creating a new surface with the default rendering backend and default rendering settings
-Public Function QuickCreateSurfaceFromDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False) As Boolean
+Public Function QuickCreateSurfaceFromDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal srcHWnd As Long = 0) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
         .SetDebugMode m_DebugMode
         If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
-        QuickCreateSurfaceFromDC = .WrapSurfaceAroundDC(srcDC)
+        QuickCreateSurfaceFromDC = .WrapSurfaceAroundDC(srcDC, srcHWnd)
+    End With
+End Function
+
+Public Function QuickCreateSurfaceFromFile(ByRef dstSurface As pd2DSurface, ByVal srcPath As String) As Boolean
+    If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
+    With dstSurface
+        .SetDebugMode m_DebugMode
+        QuickCreateSurfaceFromFile = .CreateSurfaceFromFile(srcPath)
     End With
 End Function
 
@@ -585,6 +616,54 @@ Public Function QuickCreatePairOfUIPens(ByRef dstPenBase As pd2DPen, ByRef dstPe
         QuickCreatePairOfUIPens = CBool(QuickCreatePairOfUIPens And .CreatePen())
     End With
     
+End Function
+
+'LoadPicture replacement.  All pd2D interactions are handled internally, so you just pass the target object
+' and source file path.
+'
+'The target object needs to have a DC property, or this function will fail.
+Public Function QuickLoadPicture(ByRef dstObject As Object, ByVal srcPath As String, Optional ByVal resizeImageToFit As Boolean = True) As Boolean
+    
+    On Error GoTo LoadPictureFail
+    
+    Dim srcSurface As pd2DSurface
+    If Drawing2D.QuickCreateSurfaceFromFile(srcSurface, srcPath) Then
+        
+        Dim dstSurface As pd2DSurface
+        If Drawing2D.QuickCreateSurfaceFromDC(dstSurface, dstObject.hDC, True, dstObject.hWnd) Then
+            
+            Dim cPainter As pd2DPainter
+            If Drawing2D.QuickCreatePainter(cPainter) Then
+                If resizeImageToFit Then
+                    
+                    'If the source surface is smaller than the destination surface, center the image to fit
+                    If ((srcSurface.GetSurfaceWidth < dstSurface.GetSurfaceWidth) And (srcSurface.GetSurfaceHeight < dstSurface.GetSurfaceHeight)) Then
+                        QuickLoadPicture = cPainter.DrawSurfaceI(dstSurface, (dstSurface.GetSurfaceWidth - srcSurface.GetSurfaceWidth) \ 2, (dstSurface.GetSurfaceHeight - srcSurface.GetSurfaceHeight) \ 2, srcSurface)
+                    Else
+                    
+                        'Calculate the correct target size, and use that size when painting.
+                        Dim newWidth As Long, newHeight As Long
+                        DrawingMath.FitSizeCorrectly srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, dstSurface.GetSurfaceWidth, dstSurface.GetSurfaceHeight, newWidth, newHeight
+                        
+                        dstSurface.SetSurfaceResizeQuality P2_RQ_Bicubic
+                        QuickLoadPicture = cPainter.DrawSurfaceResizedI(dstSurface, (dstSurface.GetSurfaceWidth - newWidth) \ 2, (dstSurface.GetSurfaceHeight - newHeight) \ 2, newWidth, newHeight, srcSurface)
+                        
+                    End If
+                    
+                Else
+                    QuickLoadPicture = cPainter.DrawSurfaceI(dstSurface, 0, 0, srcSurface)
+                End If
+            End If
+            
+        End If
+        
+    End If
+    
+    Exit Function
+    
+LoadPictureFail:
+    InternalError "VB error inside Drawing2D", Err.Description, Err.Number
+    QuickLoadPicture = False
 End Function
 
 Public Function IsRenderingEngineActive(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean

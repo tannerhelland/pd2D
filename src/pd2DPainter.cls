@@ -239,6 +239,20 @@ Public Function DrawSurfaceF(ByRef dstSurface As pd2DSurface, ByVal dstX As Sing
     
 End Function
 
+Public Function DrawSurfaceResizedI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
+    
+    Dim srcWidth As Long, srcHeight As Long
+    srcWidth = srcSurface.GetSurfaceWidth
+    srcHeight = srcSurface.GetSurfaceHeight
+    
+    If (customOpacity <> 100#) Then
+        DrawSurfaceResizedI = GDI_Plus.GDIPlus_DrawImageRectRectI(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, 0#, 0#, srcWidth, srcHeight, customOpacity * 0.01)
+    Else
+        DrawSurfaceResizedI = GDI_Plus.GDIPlus_DrawImageRectI(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight)
+    End If
+    
+End Function
+
 'Whenever floating-point coordinates are used, we must use GDI+ for rendering.  This is always slower than GDI.
 Public Function DrawSurfaceResizedF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef srcSurface As pd2DSurface, Optional ByVal customOpacity As Single = 100#) As Boolean
     
@@ -246,7 +260,6 @@ Public Function DrawSurfaceResizedF(ByRef dstSurface As pd2DSurface, ByVal dstX 
     srcWidth = srcSurface.GetSurfaceWidth
     srcHeight = srcSurface.GetSurfaceHeight
     
-    'Custom opacity requires a totally different (and far more complicated) GDI+ function
     If (customOpacity <> 100#) Then
         DrawSurfaceResizedF = GDI_Plus.GDIPlus_DrawImageRectRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, 0#, 0#, srcWidth, srcHeight, customOpacity * 0.01)
     Else
