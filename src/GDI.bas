@@ -9,6 +9,9 @@ Attribute VB_Name = "GDI"
 'To improve performance, pd2D falls back to GDI in cases where GDI behavior is functionally identical.  This module
 ' manages all GDI-specific code paths.
 '
+'(I should probably mention that some non-GDI bits also exist in this module, like retrieving data from hWnds which
+' actually happens in user32, but it doesn't really make sense to split those into their own module.)
+'
 'All source code in this file is licensed under a modified BSD license. This means you may use the code in your own
 ' projects IF you provide attribution. For more information, please visit http://photodemon.org/about/license/
 '
@@ -56,12 +59,19 @@ Private Declare Function MoveToEx Lib "gdi32" (ByVal hDC As Long, ByVal x As Lon
 Private Declare Function Rectangle Lib "gdi32" (ByVal hDC As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long) As Long
 Private Declare Function SelectObject Lib "gdi32" (ByVal hDC As Long, ByVal hObject As Long) As Long
 
+'Helper functions from user32
+Private Declare Function GetClientRect Lib "user32" (ByVal hndWindow As Long, ByVal ptrToRectL As Long) As Long
+
 Public Function BitBltWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, Optional ByVal rastOp As Long = vbSrcCopy) As Boolean
     BitBltWrapper = CBool(BitBlt(hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, rastOp) <> 0)
 End Function
 
 Public Function StretchBltWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal rastOp As Long = vbSrcCopy) As Boolean
     StretchBltWrapper = CBool(StretchBlt(hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, rastOp) <> 0)
+End Function
+
+Public Function GetClientRectWrapper(ByVal srcHWnd As Long, ByVal ptrToDestRect As Long) As Boolean
+    GetClientRectWrapper = CBool(GetClientRect(srcHWnd, ptrToRect) <> 0)
 End Function
 
 Public Function GetBitmapHeaderFromDC(ByVal srcDC As Long) As GDI_Bitmap

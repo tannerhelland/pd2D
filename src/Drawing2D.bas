@@ -97,6 +97,22 @@ End Enum
     Private Const P2_GradientShape = 0, P2_GradientAngle = 1, P2_GradientWrapMode = 2, P2_GradientNodes = 3
 #End If
 
+'When wrapping a DC, a surface needs to know the size of the object being painted on.  If an hWnd is supplied alongside
+' the DC, we'll use that to auto-detect dimensions; otherwise, the caller needs to provide them.  (If the size is
+' unknown, we'll use the size of the bitmap currently selected into the DC, but that's *not* reliable - so don't use it
+' unless you know what you're doing!)
+'
+'This enum is only used internally.
+Public Enum PD_2D_SIZE_DETECTION
+    P2_SizeUnknown = 0
+    P2_SizeFromHWnd = 1
+    P2_SizeFromCaller = 2
+End Enum
+
+#If False Then
+    Private Const P2_SizeUnknown = 0, P2_SizeFromHWnd = 1, P2_SizeFromCaller = 2
+#End If
+
 'Surfaces are somewhat limited at present, but this may change in the future
 Public Enum PD_2D_SURFACE_SETTINGS
     P2_SurfaceAntialiasing = 0

@@ -51,8 +51,32 @@ Private m_GdipImageHandle As Long
 'If this surface was created by wrapping an existing hDC, this value will be non-zero.
 Private m_SurfaceDC As Long
 
-'If you need to query a wrapped DC for bitmap information (e.g. width/height), use this temporary object to do so.
+'The caller can optionally provide the hWnd, if any, associated with the DC above.  This allows us to automagically
+' detect size changes.
+Private m_SurfaceHWnd As Long
+Private m_ClientRect As RECTL
+
+'If the caller does *not* supply an hWnd, they need to pass surface dimensions.  (DCs are dimension-less.)
+Private m_SurfaceWidthCaller As Single, m_SurfaceHeightCaller As Single
+
+'If we need to query a wrapped DC for bitmap information (e.g. width/height), we will use this temporary object to retrieve
+' data associated with the bitmap currently selected into the DC.  This system is *not* recommended, as bitmaps may not
+' correspond in size to the surface (for example, a memory DC without a bitmap selected into it will return a monochrome
+' 1x1 bitmap - see https://support.microsoft.com/en-us/kb/139165).  VB objects also tend to have bitmaps that are a
+' different size from their parent window, for reasons unknown.
+'
+'In other words, this is an absolute last resort.  Supply the surface's size at wrap-time, either implicitly via attached
+' hWnd or explicitly.
 Private m_SurfaceDCBitmap As GDI_Bitmap
+
+'When wrapping a DC, a surface needs to know the size of the object being painted on.  If an hWnd is supplied alongside
+' the DC, we'll use that to auto-detect dimensions; otherwise, the caller needs to provide them.  (If the size is
+' unknown, we'll use the size of the bitmap currently selected into the DC, but that's *not* reliable - so don't use it
+' unless you know what you're doing!)
+'
+'This value is only used internally, and is set automatically at wrap-time.  It is ignored for internal surfaces,
+' because we will always query the DIB directly.
+Private m_SurfaceSizeMode As PD_2D_SIZE_DETECTION
 
 'If this surface was created as a new surface, this DIB will serve as the surface backer.  (Similarly, the surface DC will simply
 ' wrap this DIB's hDC.)
@@ -509,9 +533,18 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
     
 End Function
 
-'Wrap this surface around some existing hDC.  It's fine to call this function multiple times on the same DC - changes to the handle
-' are detected automatically.
-Public Function WrapSurfaceAroundDC(ByVal srcDC As Long) As Boolean
+'Wrap this surface around some existing hDC.  The DC can be any type (display or memory, primarily; printer should also work but
+' I haven't tested it nearly as thoroughly).
+'
+'If this DC is associated with a window or a VB object, you should also pass the object's hWnd.  hWnds are more reliable for
+' retrieving surface dimensions, because we can retrieve the surface's size on-demand.  (For example, if you wrap a picture box
+' or form, then resize the picture box or form, this class will auto-magically update itself to match.)
+'
+'If you *don't* provide an hWnd, you need to provide the surface's width and height.  This allows pd2D to auto-calculate things
+' like fill boundaries and implicit draw operations (draw operations where the caller isn't required to pass width and height).
+' If you don't provide width and height, pd2D will try to guess dimensions from the active object inside the DC, but this is
+' subject to a bunch of problems and is unlikely to provide desired results.
+Public Function WrapSurfaceAroundDC(ByVal srcDC As Long, Optional ByVal srcHWnd As Long = 0, Optional ByVal surfaceWidth As Single = 0#, Optional ByVal surfaceHeight As Single = 0#) As Boolean
     
     If (srcDC <> 0) Then
     
@@ -538,6 +571,20 @@ Public Function WrapSurfaceAroundDC(ByVal srcDC As Long) As Boolean
                         RelayPropertyChangeToBackend P2_SurfaceRenderingOriginX
                         RelayPropertyChangeToBackend P2_SurfaceRenderingOriginY
                         RelayPropertyChangeToBackend P2_SurfaceResizeQuality
+                        
+                        'Determine how we're gonna get size data from this DC
+                        If (srcHWnd <> 0) Then
+                            m_SurfaceHWnd = srcHWnd
+                            m_SurfaceSizeMode = P2_SizeFromHWnd
+                        Else
+                            If (surfaceWidth <> 0) And (surfaceHeight <> 0) Then
+                                m_SurfaceWidthCaller = surfaceWidth
+                                m_SurfaceHeightCaller = surfaceHeight
+                                m_SurfaceSizeMode = P2_SizeFromCaller
+                            Else
+                                m_SurfaceSizeMode = P2_SizeUnknown
+                            End If
+                        End If
                         
                     Else
                         InternalError "GDI+ DC wrapper failed", "GDI+ failed to wrap the hDC passed to pd2DSurface.WrapSurfaceAroundDC"
@@ -654,20 +701,37 @@ Public Function GetSurfaceAlphaSupport() As Boolean
 End Function
 
 Public Function GetSurfaceHeight() As Long
-    If (m_SurfaceType = P2_ST_WrapperOnly) Then
-        m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
-        GetSurfaceHeight = m_SurfaceDCBitmap.Height
-    ElseIf (m_SurfaceType = P2_ST_Bitmap) Then
+    If (m_SurfaceType = P2_ST_Bitmap) Then
         If (Not m_SurfaceDIB Is Nothing) Then GetSurfaceHeight = m_SurfaceDIB.GetDIBHeight
+    ElseIf (m_SurfaceType = P2_ST_WrapperOnly) Then
+        Select Case m_SurfaceSizeMode
+            Case P2_SizeFromCaller
+                GetSurfaceHeight = m_SurfaceHeightCaller
+            Case P2_SizeFromHWnd
+                If GDI.GetClientRectWrapper(m_SurfaceHWnd, VarPtr(m_ClientRect)) Then GetSurfaceHeight = m_ClientRect.Right
+            Case P2_SizeUnknown
+                m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
+                GetSurfaceHeight = m_SurfaceDCBitmap.Height
+        End Select
     Else
         GetSurfaceHeight = 0
     End If
 End Function
 
+'Stride calculations are *not* guaranteed to be accurate for wrapped DCs, because the underlying surface format is device-dependent.
+' 32-bpp is assumed but this is not a safe assumption pre-Vista.  (It shouldn't matter because this function is not used at present,
+' but FYI for future use.)
 Public Function GetSurfaceStride() As Long
     If (m_SurfaceType = P2_ST_WrapperOnly) Then
-        m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
-        GetSurfaceStride = m_SurfaceDCBitmap.WidthBytes
+         Select Case m_SurfaceSizeMode
+            Case P2_SizeFromCaller
+                GetSurfaceStride = m_SurfaceWidthCaller * 4
+            Case P2_SizeFromHWnd
+                GetSurfaceStride = Me.GetSurfaceWidth * 4
+            Case P2_SizeUnknown
+                m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
+                GetSurfaceStride = m_SurfaceDCBitmap.WidthBytes
+        End Select
     ElseIf (m_SurfaceType = P2_ST_Bitmap) Then
         If (Not m_SurfaceDIB Is Nothing) Then GetSurfaceStride = m_SurfaceDIB.GetDIBStride
     Else
@@ -676,11 +740,18 @@ Public Function GetSurfaceStride() As Long
 End Function
 
 Public Function GetSurfaceWidth() As Long
-    If (m_SurfaceType = P2_ST_WrapperOnly) Then
-        m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
-        GetSurfaceWidth = m_SurfaceDCBitmap.Width
-    ElseIf (m_SurfaceType = P2_ST_Bitmap) Then
+    If (m_SurfaceType = P2_ST_Bitmap) Then
         If (Not m_SurfaceDIB Is Nothing) Then GetSurfaceWidth = m_SurfaceDIB.GetDIBWidth
+    ElseIf (m_SurfaceType = P2_ST_WrapperOnly) Then
+        Select Case m_SurfaceSizeMode
+            Case P2_SizeFromCaller
+                GetSurfaceWidth = m_SurfaceWidthCaller
+            Case P2_SizeFromHWnd
+                If GDI.GetClientRectWrapper(m_SurfaceHWnd, VarPtr(m_ClientRect)) Then GetSurfaceWidth = m_ClientRect.Right
+            Case P2_SizeUnknown
+                m_SurfaceDCBitmap = GDI.GetBitmapHeaderFromDC(m_SurfaceDC)
+                GetSurfaceWidth = m_SurfaceDCBitmap.Width
+        End Select
     Else
         GetSurfaceWidth = 0
     End If
