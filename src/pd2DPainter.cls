@@ -268,6 +268,60 @@ Public Function DrawSurfaceResizedF(ByRef dstSurface As pd2DSurface, ByVal dstX 
     
 End Function
 
+Public Function DrawSurfaceResizedCroppedF(ByRef dstSurface As pd2DSurface, ByVal dstX As Single, ByVal dstY As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef srcSurface As pd2DSurface, ByVal srcX As Single, ByVal srcY As Single, ByVal srcWidth As Single, ByVal srcHeight As Single, Optional ByVal customOpacity As Single = 100#) As Boolean
+    DrawSurfaceResizedCroppedF = GDI_Plus.GDIPlus_DrawImageRectRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, srcX, srcY, srcWidth, srcHeight, customOpacity * 0.01)
+End Function
+
+Public Function DrawSurfaceResizedCroppedI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByRef srcSurface As pd2DSurface, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal customOpacity As Single = 100#) As Boolean
+    DrawSurfaceResizedCroppedI = GDI_Plus.GDIPlus_DrawImageRectRectI(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, dstX, dstY, dstWidth, dstHeight, srcX, srcY, srcWidth, srcHeight, customOpacity * 0.01)
+End Function
+
+Public Function DrawSurfaceRotatedF(ByRef dstSurface As pd2DSurface, ByVal dstCenterX As Single, ByVal dstCenterY As Single, ByVal rotateAngle As Single, ByRef srcSurface As pd2DSurface, ByVal srcX As Single, ByVal srcY As Single, ByVal srcWidth As Single, ByVal srcHeight As Single, Optional ByVal customOpacity As Single = 100#) As Boolean
+    
+    'Create a transform that describes the rotation
+    Dim cTransform As pd2DTransform: Set cTransform = New pd2DTransform
+    cTransform.ApplyTranslation -1 * (srcX + (srcX + srcWidth)) / 2, -1 * (srcY + (srcY + srcHeight)) / 2
+    cTransform.ApplyRotation rotateAngle
+    cTransform.ApplyTranslation dstCenterX, dstCenterY
+    
+    'Translate the corner points of the image to match.  (Note that the order of points is important; GDI+ requires points
+    ' in top-left, top-right, bottom-left order, with the fourth point being optional.)
+    Dim imgCorners() As POINTFLOAT
+    ReDim imgCorners(0 To 3) As POINTFLOAT
+    imgCorners(0).x = srcX
+    imgCorners(0).y = srcY
+    imgCorners(1).x = srcX + srcWidth
+    imgCorners(1).y = srcY
+    imgCorners(2).x = srcX
+    imgCorners(2).y = srcY + srcHeight
+    
+    cTransform.ApplyTransformToPointFs VarPtr(imgCorners(0)), 3
+    
+    'Draw the image, using the new corner points as the destination!
+    DrawSurfaceRotatedF = GDI_Plus.GDIPlus_DrawImagePointsRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, imgCorners, srcX, srcY, srcWidth, srcHeight, customOpacity * 0.01)
+    
+End Function
+
+Public Function DrawSurfaceTransformedF(ByRef dstSurface As pd2DSurface, ByRef srcSurface As pd2DSurface, ByRef srcTransform As pd2DTransform, ByVal srcX As Single, ByVal srcY As Single, ByVal srcWidth As Single, ByVal srcHeight As Single, Optional ByVal customOpacity As Single = 100#) As Boolean
+    
+    'Translate the corner points of the image to match.  (Note that the order of points is important; GDI+ requires points
+    ' in top-left, top-right, bottom-left order, with the fourth point being optional.)
+    Dim imgCorners() As POINTFLOAT
+    ReDim imgCorners(0 To 3) As POINTFLOAT
+    imgCorners(0).x = srcX
+    imgCorners(0).y = srcY
+    imgCorners(1).x = srcX + srcWidth
+    imgCorners(1).y = srcY
+    imgCorners(2).x = srcX
+    imgCorners(2).y = srcY + srcHeight
+    
+    srcTransform.ApplyTransformToPointFs VarPtr(imgCorners(0)), 3
+    
+    'Draw the image, using the new corner points as the destination!
+    DrawSurfaceTransformedF = GDI_Plus.GDIPlus_DrawImagePointsRectF(dstSurface.GetHandle, srcSurface.GetGdipImageHandle, imgCorners, srcX, srcY, srcWidth, srcHeight, customOpacity * 0.01)
+    
+End Function
+
 Public Function DrawLineF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DPen, ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As Boolean
     If VerifyDrawBackends(dstSurface, srcPen) Then
         Select Case dstSurface.GetSurfaceBackend

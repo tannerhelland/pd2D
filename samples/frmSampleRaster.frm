@@ -3,7 +3,7 @@ Begin VB.Form frmSample
    Appearance      =   0  'Flat
    BackColor       =   &H80000005&
    Caption         =   "pd2D Sample Project -- github.com/tannerhelland/pd2D"
-   ClientHeight    =   7680
+   ClientHeight    =   8010
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   14325
@@ -18,25 +18,102 @@ Begin VB.Form frmSample
       Strikethrough   =   0   'False
    EndProperty
    LinkTopic       =   "Form1"
-   ScaleHeight     =   512
+   ScaleHeight     =   534
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   955
    StartUpPosition =   3  'Windows Default
-   Begin VB.CommandButton cmdErase 
+   Begin VB.HScrollBar hscrTransform 
+      Height          =   255
+      Index           =   4
+      Left            =   1680
+      Max             =   200
+      Min             =   -200
+      TabIndex        =   22
+      Top             =   6480
+      Width           =   1815
+   End
+   Begin VB.HScrollBar hscrTransform 
+      Height          =   255
+      Index           =   3
+      Left            =   1680
+      Max             =   200
+      Min             =   -200
+      TabIndex        =   20
+      Top             =   6120
+      Width           =   1815
+   End
+   Begin VB.HScrollBar hscrTransform 
+      Height          =   255
+      Index           =   2
+      Left            =   1680
+      Max             =   3599
+      TabIndex        =   16
+      Top             =   5760
+      Width           =   1815
+   End
+   Begin VB.HScrollBar hscrTransform 
+      Height          =   255
+      Index           =   1
+      Left            =   1680
+      Max             =   200
+      Min             =   1
+      TabIndex        =   14
+      Top             =   5400
+      Value           =   100
+      Width           =   1815
+   End
+   Begin VB.HScrollBar hscrTransform 
+      Height          =   255
+      Index           =   0
+      Left            =   1680
+      Max             =   200
+      Min             =   1
+      TabIndex        =   12
+      Top             =   5040
+      Value           =   100
+      Width           =   1815
+   End
+   Begin VB.CheckBox chkAutoFit 
+      BackColor       =   &H80000005&
+      Caption         =   "auto-fit image to canvas"
+      Height          =   255
+      Left            =   600
+      TabIndex        =   10
+      Top             =   3900
+      Value           =   1  'Checked
+      Width           =   3615
+   End
+   Begin VB.CheckBox chkClearOnLoad 
+      BackColor       =   &H80000005&
+      Caption         =   "clear canvas before loading"
+      Height          =   255
+      Left            =   600
+      TabIndex        =   9
+      Top             =   4260
+      Width           =   3615
+   End
+   Begin VB.ListBox lstImages 
+      Height          =   2100
+      Left            =   600
+      TabIndex        =   8
+      Top             =   960
+      Width           =   3615
+   End
+   Begin VB.CommandButton cmdReset 
       Cancel          =   -1  'True
-      Caption         =   "Erase!"
+      Caption         =   "Reset!"
       Height          =   615
       Left            =   600
       TabIndex        =   6
-      Top             =   6960
+      Top             =   7320
       Width           =   3615
    End
    Begin VB.CommandButton cmdLoadImage 
-      Caption         =   "Select image..."
+      Caption         =   "choose your own image..."
       Height          =   615
       Left            =   600
       TabIndex        =   4
-      Top             =   960
+      Top             =   3120
       Width           =   3615
    End
    Begin VB.PictureBox picOutput 
@@ -53,18 +130,125 @@ Begin VB.Form frmSample
          Strikethrough   =   0   'False
       EndProperty
       ForeColor       =   &H80000008&
-      Height          =   6960
+      Height          =   7320
       Left            =   4320
-      ScaleHeight     =   462
+      ScaleHeight     =   486
       ScaleMode       =   3  'Pixel
       ScaleWidth      =   652
       TabIndex        =   1
       Top             =   600
       Width           =   9810
    End
+   Begin VB.Label lblTransform 
+      Alignment       =   2  'Center
+      BackStyle       =   0  'Transparent
+      Caption         =   "1.0"
+      Height          =   255
+      Index           =   4
+      Left            =   3600
+      TabIndex        =   23
+      Top             =   6480
+      Width           =   615
+   End
+   Begin VB.Label lblTransform 
+      Alignment       =   2  'Center
+      BackStyle       =   0  'Transparent
+      Caption         =   "1.0"
+      Height          =   255
+      Index           =   3
+      Left            =   3600
+      TabIndex        =   21
+      Top             =   6120
+      Width           =   615
+   End
+   Begin VB.Label lblDescription 
+      AutoSize        =   -1  'True
+      BackStyle       =   0  'Transparent
+      Caption         =   "skew (x, y)"
+      Height          =   255
+      Index           =   2
+      Left            =   600
+      TabIndex        =   19
+      Top             =   6120
+      Width           =   885
+   End
+   Begin VB.Label lblDescription 
+      AutoSize        =   -1  'True
+      BackStyle       =   0  'Transparent
+      Caption         =   "angle"
+      Height          =   255
+      Index           =   1
+      Left            =   600
+      TabIndex        =   18
+      Top             =   5760
+      Width           =   480
+   End
+   Begin VB.Label lblTransform 
+      Alignment       =   2  'Center
+      BackStyle       =   0  'Transparent
+      Caption         =   "1.0"
+      Height          =   255
+      Index           =   2
+      Left            =   3600
+      TabIndex        =   17
+      Top             =   5760
+      Width           =   615
+   End
+   Begin VB.Label lblTransform 
+      Alignment       =   2  'Center
+      BackStyle       =   0  'Transparent
+      Caption         =   "1.0"
+      Height          =   255
+      Index           =   1
+      Left            =   3600
+      TabIndex        =   15
+      Top             =   5400
+      Width           =   615
+   End
+   Begin VB.Label lblTransform 
+      Alignment       =   2  'Center
+      BackStyle       =   0  'Transparent
+      Caption         =   "1.0"
+      Height          =   255
+      Index           =   0
+      Left            =   3600
+      TabIndex        =   13
+      Top             =   5040
+      Width           =   615
+   End
+   Begin VB.Label lblDescription 
+      AutoSize        =   -1  'True
+      BackStyle       =   0  'Transparent
+      Caption         =   "scale (x, y)"
+      Height          =   255
+      Index           =   0
+      Left            =   600
+      TabIndex        =   11
+      Top             =   5040
+      Width           =   900
+   End
    Begin VB.Label lblTitle 
       BackStyle       =   0  'Transparent
-      Caption         =   "erase existing drawing"
+      Caption         =   "transform the test image"
+      BeginProperty Font 
+         Name            =   "Segoe UI"
+         Size            =   12
+         Charset         =   0
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      Height          =   315
+      Index           =   3
+      Left            =   360
+      TabIndex        =   7
+      Top             =   4680
+      Width           =   3810
+   End
+   Begin VB.Label lblTitle 
+      BackStyle       =   0  'Transparent
+      Caption         =   "reset everything"
       BeginProperty Font 
          Name            =   "Segoe UI"
          Size            =   12
@@ -78,7 +262,7 @@ Begin VB.Form frmSample
       Index           =   4
       Left            =   360
       TabIndex        =   5
-      Top             =   6600
+      Top             =   6960
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -229,8 +413,14 @@ Private m_Painter As pd2DPainter
 'This "m_BackBuffer" surface is the in-memory image we'll be drawing to.
 Private m_BackBuffer As pd2DSurface
 
+'Whenever a new image is loaded, the current viewport (including any images layered atop each other) is stored inside
+' this surface; this surface is what we transform if the user selects "scale", "rotate", etc
+Private m_CurrentImage As pd2DSurface
+
 Private Sub cmdLoadImage_Click()
-    
+        
+    If CBool(chkClearOnLoad.Value) Then picOutput.Cls
+        
     'pd2D makes image loading fast and convenient.  Let's start by displaying a common dialog with filters
     ' for all supported image formats.
     '
@@ -246,7 +436,11 @@ Private Sub cmdLoadImage_Click()
     If cFileOpen.GetOpenFileName(imgFilename, "", True, False, supportedImageFiles, , GetSampleImageFolder, "Please select an image file", , frmSample.hWnd) Then
         
         'pd2D provides a simplified function for loading images - just one line of code!
-        Drawing2D.QuickLoadPicture picOutput, imgFilename
+        Drawing2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+        
+        'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
+        ' user selects "rotate", "skew", etc
+        CloneViewport
         
     End If
     
@@ -280,7 +474,7 @@ Private Sub Form_Load()
     'Next, let's create our in-memory surface, which I'm going to refer to as our "back buffer".  We will do all our
     ' painting on *this* surface.  (Note our use of the "Quick"-prefixed functions inside the Drawing2D module.
     ' These are a nice shorthand way to perform complicated instantiation tasks.)
-    Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
+    Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
     
     'When drawing onto an object, pd2D prefers pixel measurements.  I always recommend setting this at design-time,
     ' but just to be safe, but we can perform a failsafe check now.
@@ -288,10 +482,21 @@ Private Sub Form_Load()
     
     'Normally, that's all you need to do inside Form_Load!
     
+    'We're also going to populate a few items in the list box, as a convenience to the user
+    lstImages.Clear
+    lstImages.AddItem "3D Arrows (metafile)", 0
+    lstImages.AddItem "Computer (metafile)", 1
+    lstImages.AddItem "Satellite (metafile)", 2
+    lstImages.AddItem "Nature 1 (jpeg)", 3
+    lstImages.AddItem "Nature 2 (jpeg)", 4
+    lstImages.AddItem "Color swatch (png)", 5
+    lstImages.AddItem "Gradient (png)", 6
+    lstImages.AddItem "Music (png)", 7
+    lstImages.ListIndex = -1
+    
 End Sub
 
-'Whenever the sample form is resized, we want to resize the sample output window to match.  Note that we also need to
-' resize our in-memory "back buffer" surface to match the new picture box size.
+'Whenever the sample form is resized, we want to resize the sample output window to match.
 Private Sub Form_Resize()
     
     'Figure out new width/height values that fill most of the form
@@ -305,7 +510,7 @@ Private Sub Form_Resize()
         picOutput.Move picOutput.Left, picOutput.Top, newOutputWidth, newOutputHeight
         
         'Because we use a back buffer for drawing, we also need to recreate it to match the new picture box size.
-        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
+        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite
         
     End If
 
@@ -318,14 +523,111 @@ Private Sub Form_Unload(Cancel As Integer)
     
 End Sub
 
-'When switching between demos, we want to erase both our in-memory buffer and the target picture box.  Surfaces provide
-' a convenient function for this, called "EraseSurfaceContents".
-Private Sub EraseAllBuffers()
-    m_BackBuffer.EraseSurfaceContents vbBlack, 0#
+'The user can also click the on-screen "erase" button to erase whenever they want
+Private Sub cmdReset_Click()
+    
+    Set m_CurrentImage = Nothing
+    m_BackBuffer.EraseSurfaceContents vbWhite, 100
     picOutput.Cls
+    
+    hscrTransform(0).Value = 100
+    hscrTransform(1).Value = 100
+    hscrTransform(2).Value = 0
+    hscrTransform(3).Value = 0
+    hscrTransform(4).Value = 0
+    
+    LoadSampleImage
+    
 End Sub
 
-'The user can also click the on-screen "erase" button to erase whenever they want
-Private Sub cmdErase_Click()
-    EraseAllBuffers
+Private Sub hscrTransform_Change(Index As Integer)
+    ApplyTransformation Index
+End Sub
+
+Private Sub hscrTransform_Scroll(Index As Integer)
+    ApplyTransformation Index
+End Sub
+
+Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
+    
+    If (m_CurrentImage Is Nothing) Then Exit Sub
+    
+    'Mirror the current transformation value to the neighboring label, as a convenience to the user
+    If (srcScrollIndex <> 2) Then
+        lblTransform(srcScrollIndex).Caption = Format$(hscrTransform(srcScrollIndex).Value / 100, "0.00")
+    Else
+        lblTransform(srcScrollIndex).Caption = Format$(hscrTransform(srcScrollIndex).Value / 10, "0.00")
+    End If
+    lblTransform(srcScrollIndex).Refresh
+    
+    'Build a transformation object that describes the user's current transform settings.
+    ' (Note that we always start by centering the image around (0, 0) - if we *don't* do this, transforms like rotation
+    '  will occur relative to the image's top-left corner, as it's the default (0, 0) position.)
+    Dim cTransform As pd2DTransform: Set cTransform = New pd2DTransform
+    With cTransform
+        .ApplyTranslation -1 * (m_CurrentImage.GetSurfaceWidth / 2), -1 * (m_CurrentImage.GetSurfaceHeight / 2)
+        .ApplyScaling hscrTransform(0).Value / 100, hscrTransform(1).Value / 100
+        .ApplyRotation hscrTransform(2).Value / 10
+        .ApplyShear hscrTransform(3).Value / 100, hscrTransform(4).Value / 100
+        
+        'As the final step, note that we center the image in the current viewport
+        .ApplyTranslation m_BackBuffer.GetSurfaceWidth / 2, m_BackBuffer.GetSurfaceHeight / 2
+    End With
+    
+    'Paint the result!
+    m_BackBuffer.EraseSurfaceContents vbWhite, 100#
+    m_BackBuffer.SetSurfaceResizeQuality P2_RQ_Bicubic
+    m_Painter.DrawSurfaceTransformedF m_BackBuffer, m_CurrentImage, cTransform, 0, 0, m_CurrentImage.GetSurfaceWidth, m_CurrentImage.GetSurfaceHeight
+    
+    'As the final step, copy the contents of the backbuffer to the viewport picture box
+    m_BackBuffer.CopySurfaceToDC picOutput.hDC
+    
+End Sub
+
+'The image listbox is just a convenience, to allow easier image testing
+Private Sub lstImages_Click()
+    LoadSampleImage
+End Sub
+
+Private Sub LoadSampleImage()
+
+    If CBool(chkClearOnLoad.Value) Then picOutput.Cls
+    
+    Dim imgFilename As String
+    
+    Select Case lstImages.ListIndex
+        Case 0
+            imgFilename = GetSampleImageFolder & "3DARROW6.WMF"
+        Case 1
+            imgFilename = GetSampleImageFolder & "COMPUTER.WMF"
+        Case 2
+            imgFilename = GetSampleImageFolder & "SATELIT1.WMF"
+        Case 3
+            imgFilename = GetSampleImageFolder & "20140801_014.jpg"
+        Case 4
+            imgFilename = GetSampleImageFolder & "IMG_0366.jpg"
+        Case 5
+            imgFilename = GetSampleImageFolder & "ColorChecker_AdobeRGB.png"
+        Case 6
+            imgFilename = GetSampleImageFolder & "Gradient_Bottom_to_Top.png"
+        Case Else
+            imgFilename = GetSampleImageFolder & "music_icon.png"
+    End Select
+    
+    Drawing2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+    
+    'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
+    ' user selects "rotate", "skew", etc
+    CloneViewport
+    
+End Sub
+
+Private Sub CloneViewport()
+    
+    Dim tmpViewport As pd2DSurface
+    Drawing2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, True, picOutput.hWnd
+    
+    If (m_CurrentImage Is Nothing) Then Set m_CurrentImage = New pd2DSurface
+    m_CurrentImage.CloneSurface tmpViewport
+    
 End Sub

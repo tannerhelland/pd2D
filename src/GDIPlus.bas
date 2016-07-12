@@ -1847,6 +1847,52 @@ Public Function GDIPlus_DrawImageRectRectI(ByVal dstGraphics As Long, ByVal srcI
         
 End Function
 
+Public Function GDIPlus_DrawImagePointsRectF(ByVal dstGraphics As Long, ByVal srcImage As Long, ByRef dstPlgPoints() As POINTFLOAT, ByVal srcX As Single, ByVal srcY As Single, ByVal srcWidth As Single, ByVal srcHeight As Single, Optional ByVal opacityModifier As Single = 1#) As Boolean
+    
+    'Modified opacity requires us to create a temporary image attributes object
+    Dim imgAttributesHandle As Long
+    If (opacityModifier <> 1#) Then
+        GdipCreateImageAttributes imgAttributesHandle
+        m_AttributesMatrix(3, 3) = opacityModifier
+        GdipSetImageAttributesColorMatrix imgAttributesHandle, GP_CAT_Bitmap, 1&, VarPtr(m_AttributesMatrix(0, 0)), 0&, GP_CMF_Default
+    End If
+    
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawImagePointsRect(dstGraphics, srcImage, VarPtr(dstPlgPoints(0)), 3, srcX, srcY, srcWidth, srcHeight, GP_U_Pixel, imgAttributesHandle, 0&, 0&)
+    GDIPlus_DrawImagePointsRectF = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+    
+    'As necessary, release our image attributes object, and reset the alpha value of the master identity matrix
+    If (opacityModifier <> 1#) Then
+        GdipDisposeImageAttributes imgAttributesHandle
+        m_AttributesMatrix(3, 3) = 1#
+    End If
+        
+End Function
+
+Public Function GDIPlus_DrawImagePointsRectI(ByVal dstGraphics As Long, ByVal srcImage As Long, ByRef dstPlgPoints() As POINTLONG, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal opacityModifier As Single = 1#) As Boolean
+    
+    'Modified opacity requires us to create a temporary image attributes object
+    Dim imgAttributesHandle As Long
+    If (opacityModifier <> 1#) Then
+        GdipCreateImageAttributes imgAttributesHandle
+        m_AttributesMatrix(3, 3) = opacityModifier
+        GdipSetImageAttributesColorMatrix imgAttributesHandle, GP_CAT_Bitmap, 1&, VarPtr(m_AttributesMatrix(0, 0)), 0&, GP_CMF_Default
+    End If
+    
+    Dim tmpReturn As GP_Result
+    tmpReturn = GdipDrawImagePointsRectI(dstGraphics, srcImage, VarPtr(dstPlgPoints(0)), 3, srcX, srcY, srcWidth, srcHeight, GP_U_Pixel, imgAttributesHandle, 0&, 0&)
+    GDIPlus_DrawImagePointsRectI = CBool(tmpReturn = GP_OK)
+    If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+    
+    'As necessary, release our image attributes object, and reset the alpha value of the master identity matrix
+    If (opacityModifier <> 1#) Then
+        GdipDisposeImageAttributes imgAttributesHandle
+        m_AttributesMatrix(3, 3) = 1#
+    End If
+        
+End Function
+
 Public Function GDIPlus_DrawLineF(ByVal dstGraphics As Long, ByVal srcPen As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As Boolean
     GDIPlus_DrawLineF = CBool(GdipDrawLine(dstGraphics, srcPen, x1, y1, x2, y2) = GP_OK)
 End Function
@@ -1951,6 +1997,9 @@ Public Function GDIPlus_FillRectI(ByVal dstGraphics As Long, ByVal srcBrush As L
     GDIPlus_FillRectI = CBool(GdipFillRectangleI(dstGraphics, srcBrush, rectLeft, rectTop, rectWidth, rectHeight) = GP_OK)
 End Function
 
+'WARNING!  If a graphics object has never specified a clipping region, the default region is infinite.
+' For reasons unknown, GDI+ is finicky about returning such a region; it often reports "Object Busy" for no
+' apparent reason.  I'm not sure of a good workaround.
 Public Function GDIPlus_GraphicsGetClipRegion(ByVal srcGraphics As Long) As Long
     Dim tmpReturn As GP_Result
     tmpReturn = GdipGetClip(srcGraphics, GDIPlus_GraphicsGetClipRegion)

@@ -243,12 +243,9 @@ Public Function GetOpenFileName(ByRef FileName As String, _
         GetOpenFileName = True
         
     Else
-        
-        Debug.Print "Open dialog canceled. "
         GetOpenFileName = False
         FileName = ""
         FileTitle = ""
-        
     End If
                            
 End Function
@@ -349,10 +346,7 @@ Public Function GetSaveFileName(ByRef FileName As String, _
         GetSaveFileName = True
         
     Else
-        
-        Debug.Print "Save dialog canceled."
         GetSaveFileName = False
-        
     End If
     
 End Function

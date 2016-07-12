@@ -206,7 +206,7 @@ End Sub
 ' serialization (e.g. you cannot save/load them to a string).  Clipping is one such property, because clipping may
 ' be undefined, a simple rect, or a complex region, and pd2D doesn't implement all those features... yet.
 ' (GDIPlus can retrieve region data as a byte array, so we could theoretically convert that to Base64 and store it
-'  inside an XML tag.)
+'  inside an XML tag... maybe someday!)
 Public Function GetSurfaceClippingRegion(ByRef dstRegion As pd2DRegion) As Boolean
 
     If (m_SurfaceHandle <> 0) Then
@@ -282,6 +282,47 @@ Public Function SetSurfaceClip_None() As Boolean
         SetSurfaceClip_None = False
     End If
     
+End Function
+
+'Make an exact copy of an existing surface.
+Public Function CloneSurface(ByRef srcSurface As pd2DSurface, Optional ByVal clonePropertiesToo As Boolean = False, Optional ByVal cloneClippingToo As Boolean = False) As Boolean
+
+    If (Not srcSurface Is Nothing) Then
+        
+        Me.CreateBlankSurface srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, srcSurface.GetSurfaceAlphaSupport
+        
+        'Clone all surface properties
+        If clonePropertiesToo Then
+            Dim i As PD_2D_SURFACE_SETTINGS
+            For i = 0 To [_P2_NumOfSurfaceSettings] - 1
+                Me.SetSurfaceProperty i, srcSurface.GetSurfaceProperty(i)
+            Next i
+        End If
+        
+        'Clipping regions are somewhat messy, as their shape can be horrifically complex
+        Dim srcRegion As pd2DRegion
+        If cloneClippingToo Then
+            If srcSurface.GetSurfaceClippingRegion(srcRegion) Then Me.SetSurfaceClip_FromRegion srcRegion, P2_CM_Replace
+        End If
+        
+        'Copy the surface contents into place
+        Dim cPainter As pd2DPainter
+        Drawing2D.QuickCreatePainter cPainter
+        CloneSurface = cPainter.CopySurfaceI(Me, 0, 0, srcSurface)
+        
+    Else
+        InternalError "Failed to clone surface", "Source surface was empty"
+    End If
+
+End Function
+
+'Copy the current contents of this surface to some target DC.  (This is a nice shorthand function for flipping backbuffers, for example.)
+' I know it's weird, but if you don't supply a destination width and height, the surface's current width/height values will be automatically
+' plugged in.
+Public Function CopySurfaceToDC(ByVal dstDC As Long, Optional ByVal dstX As Long = 0, Optional ByVal dstY As Long = 0, Optional ByVal dstWidth As Long = 0, Optional ByVal dstHeight As Long = 0, Optional ByVal srcX As Long = 0, Optional ByVal srcY As Long = 0)
+    If (dstWidth = 0) Then dstWidth = Me.GetSurfaceWidth
+    If (dstHeight = 0) Then dstHeight = Me.GetSurfaceHeight
+    CopySurfaceToDC = GDI.BitBltWrapper(dstDC, dstX, dstY, dstWidth, dstHeight, Me.GetSurfaceDC, srcX, srcY)
 End Function
 
 'Create a blank in-memory surface.  pd2DSurface will automatically manage the memory for this surface.

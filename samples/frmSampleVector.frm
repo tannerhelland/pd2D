@@ -669,12 +669,6 @@ Private Sub tmrSample_Timer()
     picWidth = picOutput.ScaleWidth
     picHeight = picOutput.ScaleHeight
     
-    'Wrap a temporary pd2D surface around the output picture box.  We will release this surface at the end of this sub,
-    ' because the underlying hDC is not owned by us - it's owned by VB, so we shouldn't monopolize it any longer than
-    ' we absolutely have to.
-    Dim targetPictureBox As pd2DSurface
-    Drawing2D.QuickCreateSurfaceFromDC targetPictureBox, picOutput.hDC, False
-    
     Dim i As Long
     Dim cPen As pd2DPen, cBrush As pd2DBrush
     
@@ -798,7 +792,7 @@ Private Sub tmrSample_Timer()
             'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
             ' refresh the picture box after copying.)
-            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+            m_BackBuffer.CopySurfaceToDC picOutput.hDC
             
             
         Case Test2_PolygonDemo
@@ -866,7 +860,8 @@ Private Sub tmrSample_Timer()
             'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
             ' refresh the picture box after performing the copy operation.)
-            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+            m_BackBuffer.CopySurfaceToDC picOutput.hDC
+            
         
         Case Test3_CompassDemo
         
@@ -901,7 +896,8 @@ Private Sub tmrSample_Timer()
             'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
             ' refresh the picture box after performing the copy operation.)
-            m_Painter.CopySurfaceI targetPictureBox, 0, 0, m_BackBuffer
+            m_BackBuffer.CopySurfaceToDC picOutput.hDC
+            
         
         Case Else
     
