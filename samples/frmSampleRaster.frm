@@ -3,7 +3,7 @@ Begin VB.Form frmSample
    Appearance      =   0  'Flat
    BackColor       =   &H80000005&
    Caption         =   "pd2D Sample Project -- github.com/tannerhelland/pd2D"
-   ClientHeight    =   8010
+   ClientHeight    =   8475
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   14325
@@ -18,10 +18,27 @@ Begin VB.Form frmSample
       Strikethrough   =   0   'False
    EndProperty
    LinkTopic       =   "Form1"
-   ScaleHeight     =   534
+   ScaleHeight     =   565
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   955
    StartUpPosition =   3  'Windows Default
+   Begin VB.ComboBox cboTransformQuality 
+      BeginProperty Font 
+         Name            =   "Segoe UI"
+         Size            =   9
+         Charset         =   0
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      Height          =   345
+      Left            =   1680
+      Style           =   2  'Dropdown List
+      TabIndex        =   25
+      Top             =   6840
+      Width           =   2535
+   End
    Begin VB.HScrollBar hscrTransform 
       Height          =   255
       Index           =   4
@@ -105,7 +122,7 @@ Begin VB.Form frmSample
       Height          =   615
       Left            =   600
       TabIndex        =   6
-      Top             =   7320
+      Top             =   7800
       Width           =   3615
    End
    Begin VB.CommandButton cmdLoadImage 
@@ -138,6 +155,17 @@ Begin VB.Form frmSample
       TabIndex        =   1
       Top             =   600
       Width           =   9810
+   End
+   Begin VB.Label lblDescription 
+      AutoSize        =   -1  'True
+      BackStyle       =   0  'Transparent
+      Caption         =   "quality"
+      Height          =   255
+      Index           =   3
+      Left            =   600
+      TabIndex        =   24
+      Top             =   6840
+      Width           =   570
    End
    Begin VB.Label lblTransform 
       Alignment       =   2  'Center
@@ -262,7 +290,7 @@ Begin VB.Form frmSample
       Index           =   4
       Left            =   360
       TabIndex        =   5
-      Top             =   6960
+      Top             =   7440
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -417,6 +445,10 @@ Private m_BackBuffer As pd2DSurface
 ' this surface; this surface is what we transform if the user selects "scale", "rotate", etc
 Private m_CurrentImage As pd2DSurface
 
+Private Sub cboTransformQuality_Click()
+    ApplyTransformation 0
+End Sub
+
 Private Sub cmdLoadImage_Click()
         
     If CBool(chkClearOnLoad.Value) Then picOutput.Cls
@@ -494,6 +526,13 @@ Private Sub Form_Load()
     lstImages.AddItem "Music (png)", 7
     lstImages.ListIndex = -1
     
+    '...as well as the "transform quality" dropdown
+    cboTransformQuality.Clear
+    cboTransformQuality.AddItem "nearest-neighbor", 0
+    cboTransformQuality.AddItem "bilinear", 1
+    cboTransformQuality.AddItem "bicubic", 2
+    cboTransformQuality.ListIndex = 2
+    
 End Sub
 
 'Whenever the sample form is resized, we want to resize the sample output window to match.
@@ -510,7 +549,7 @@ Private Sub Form_Resize()
         picOutput.Move picOutput.Left, picOutput.Top, newOutputWidth, newOutputHeight
         
         'Because we use a back buffer for drawing, we also need to recreate it to match the new picture box size.
-        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite
+        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
         
     End If
 
@@ -576,7 +615,7 @@ Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
     
     'Paint the result!
     m_BackBuffer.EraseSurfaceContents vbWhite, 100#
-    m_BackBuffer.SetSurfaceResizeQuality P2_RQ_Bicubic
+    m_BackBuffer.SetSurfaceResizeQuality cboTransformQuality.ListIndex
     m_Painter.DrawSurfaceTransformedF m_BackBuffer, m_CurrentImage, cTransform, 0, 0, m_CurrentImage.GetSurfaceWidth, m_CurrentImage.GetSurfaceHeight
     
     'As the final step, copy the contents of the backbuffer to the viewport picture box
@@ -625,7 +664,7 @@ End Sub
 Private Sub CloneViewport()
     
     Dim tmpViewport As pd2DSurface
-    Drawing2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, True, picOutput.hWnd
+    Drawing2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, , picOutput.hWnd
     
     If (m_CurrentImage Is Nothing) Then Set m_CurrentImage = New pd2DSurface
     m_CurrentImage.CloneSurface tmpViewport

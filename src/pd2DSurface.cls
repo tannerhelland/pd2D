@@ -285,11 +285,11 @@ Public Function SetSurfaceClip_None() As Boolean
 End Function
 
 'Make an exact copy of an existing surface.
-Public Function CloneSurface(ByRef srcSurface As pd2DSurface, Optional ByVal clonePropertiesToo As Boolean = False, Optional ByVal cloneClippingToo As Boolean = False) As Boolean
+Public Function CloneSurface(ByRef srcSurface As pd2DSurface, Optional ByVal cloneAlphaChannelToo As Boolean = False, Optional ByVal clonePropertiesToo As Boolean = False, Optional ByVal cloneClippingToo As Boolean = False) As Boolean
 
     If (Not srcSurface Is Nothing) Then
         
-        Me.CreateBlankSurface srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, srcSurface.GetSurfaceAlphaSupport
+        Me.CreateBlankSurface srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, IIf(srcSurface.GetSurfaceAlphaSupport, cloneAlphaChannelToo, False)
         
         'Clone all surface properties
         If clonePropertiesToo Then
