@@ -289,26 +289,32 @@ Public Function CloneSurface(ByRef srcSurface As pd2DSurface, Optional ByVal clo
 
     If (Not srcSurface Is Nothing) Then
         
-        Me.CreateBlankSurface srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, IIf(srcSurface.GetSurfaceAlphaSupport, cloneAlphaChannelToo, False)
+        'Note that surface creation from this CreateBlankSurface call will report this surface's state back to the main Drawing2D module.
+        ' If subsequent cloning steps fail (very unlikely), then the main surface count will be off by (1).
+        CloneSurface = Me.CreateBlankSurface(srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, IIf(srcSurface.GetSurfaceAlphaSupport, cloneAlphaChannelToo, False))
         
-        'Clone all surface properties
-        If clonePropertiesToo Then
-            Dim i As PD_2D_SURFACE_SETTINGS
-            For i = 0 To [_P2_NumOfSurfaceSettings] - 1
-                Me.SetSurfaceProperty i, srcSurface.GetSurfaceProperty(i)
-            Next i
+        If CloneSurface Then
+        
+            'Clone all surface properties
+            If clonePropertiesToo Then
+                Dim i As PD_2D_SURFACE_SETTINGS
+                For i = 0 To [_P2_NumOfSurfaceSettings] - 1
+                    Me.SetSurfaceProperty i, srcSurface.GetSurfaceProperty(i)
+                Next i
+            End If
+            
+            'Clipping regions are somewhat messy, as their shape can be horrifically complex
+            Dim srcRegion As pd2DRegion
+            If cloneClippingToo Then
+                If srcSurface.GetSurfaceClippingRegion(srcRegion) Then Me.SetSurfaceClip_FromRegion srcRegion, P2_CM_Replace
+            End If
+            
+            'Copy the surface contents into place
+            Dim cPainter As pd2DPainter
+            Drawing2D.QuickCreatePainter cPainter
+            CloneSurface = cPainter.CopySurfaceI(Me, 0, 0, srcSurface)
+            
         End If
-        
-        'Clipping regions are somewhat messy, as their shape can be horrifically complex
-        Dim srcRegion As pd2DRegion
-        If cloneClippingToo Then
-            If srcSurface.GetSurfaceClippingRegion(srcRegion) Then Me.SetSurfaceClip_FromRegion srcRegion, P2_CM_Replace
-        End If
-        
-        'Copy the surface contents into place
-        Dim cPainter As pd2DPainter
-        Drawing2D.QuickCreatePainter cPainter
-        CloneSurface = cPainter.CopySurfaceI(Me, 0, 0, srcSurface)
         
     Else
         InternalError "Failed to clone surface", "Source surface was empty"
@@ -356,6 +362,9 @@ Public Function CreateBlankSurface(ByVal surfaceWidth As Long, ByVal surfaceHeig
                         RelayPropertyChangeToBackend P2_SurfaceRenderingOriginY
                         RelayPropertyChangeToBackend P2_SurfaceResizeQuality
                     End If
+                    
+                    'When debug mode is active, all object creations are reported back to the master Drawing2D module
+                    If (CreateBlankSurface And m_DebugMode) Then Drawing2D.DEBUG_NotifySurfaceCountChange m_SurfaceBackend, True
                     
             End Select
             
@@ -570,12 +579,15 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
                         RelayPropertyChangeToBackend P2_SurfaceRenderingOriginY
                         RelayPropertyChangeToBackend P2_SurfaceResizeQuality
                     End If
-                
+                    
                 End If
                 
             Else
                 CreateSurfaceFromFile = False
             End If
+            
+            'When debug mode is active, all object creations are reported back to the master Drawing2D module
+            If (CreateSurfaceFromFile And m_DebugMode) Then Drawing2D.DEBUG_NotifySurfaceCountChange m_SurfaceBackend, True
             
     End Select
     

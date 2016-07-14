@@ -495,7 +495,14 @@ Private Sub Form_Unload(Cancel As Integer)
     'If an animated demo is still running, make sure to turn it off!
     tmrSample.Enabled = False
     
-    'Before we exit, release the rendering backend we started inside Form_Load
+    'Before we shut down the rendering backend, we need to release any remaining pd2D objects.
+    Set m_Painter = Nothing
+    Set m_BackBuffer = Nothing
+    Set m_CompassLinesThick = Nothing
+    Set m_CompassLinesThin = Nothing
+    Set m_CompassArrow = Nothing
+    
+    'As the final step at shutdown time, release the rendering backend we started inside Form_Load
     Drawing2D.StopRenderingEngine P2_DefaultBackend
     
 End Sub

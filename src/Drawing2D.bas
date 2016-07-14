@@ -706,10 +706,22 @@ End Function
 
 'Stop a running rendering backend
 Public Function StopRenderingEngine(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
-    
+        
     Select Case targetBackend
             
         Case P2_DefaultBackend, P2_GDIPlusBackend
+            
+            'Prior to release, see if any GDI+ object counts are non-zero; if they are, the caller needs to
+            ' be notified, because those resources should be released before the backend disappears.
+            If m_DebugMode Then
+                If (m_BrushCount_GDIPlus <> 0) Then InternalError "Brushes still active", "There are still " & m_BrushCount_GDIPlus & " brush(es) active.  Release these objects before shutting down the drawing backend."
+                If (m_PathCount_GDIPlus <> 0) Then InternalError "Paths still active", "There are still " & m_PathCount_GDIPlus & " path(s) active.  Release these objects before shutting down the drawing backend."
+                If (m_PenCount_GDIPlus <> 0) Then InternalError "Pens still active", "There are still " & m_PenCount_GDIPlus & " pen(s) active.  Release these objects before shutting down the drawing backend."
+                If (m_RegionCount_GDIPlus <> 0) Then InternalError "Regions still active", "There are still " & m_RegionCount_GDIPlus & " region(s) active.  Release these objects before shutting down the drawing backend."
+                If (m_SurfaceCount_GDIPlus <> 0) Then InternalError "Surfaces still active", "There are still " & m_SurfaceCount_GDIPlus & " surface(s) active.  Release these objects before shutting down the drawing backend."
+                If (m_TransformCount_GDIPlus <> 0) Then InternalError "Transforms still active", "There are still " & m_TransformCount_GDIPlus & " transform(s) active.  Release these objects before shutting down the drawing backend."
+            End If
+            
             StopRenderingEngine = GDI_Plus.GDIP_StopEngine()
             m_GDIPlusAvailable = False
             

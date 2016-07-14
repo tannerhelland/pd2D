@@ -144,9 +144,7 @@ End Sub
 
 'Add your own error-handling behavior here, as desired
 Private Sub InternalGDIError(Optional ByRef errName As String = vbNullString, Optional ByRef errDescription As String = vbNullString, Optional ByVal ErrNum As Long = 0)
-    #If DEBUGMODE = 1 Then
-        Debug.Print "WARNING!  The GDI interface encountered an error: """ & errName & """ - " & errDescription
-        If (ErrNum <> 0) Then Debug.Print "(Also, an error number was reported: " & ErrNum & ")"
-    #End If
+    Debug.Print "WARNING!  The GDI interface encountered an error: """ & errName & """ - " & errDescription
+    If (ErrNum <> 0) Then Debug.Print "(Also, an error number was reported: " & ErrNum & ")"
 End Sub
 
