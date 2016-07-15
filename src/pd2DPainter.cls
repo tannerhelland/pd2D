@@ -587,3 +587,7 @@ End Function
 Private Sub InternalError(Optional ByRef errName As String = vbNullString, Optional ByRef errDescription As String = vbNullString, Optional ByVal ErrNum As Long = 0)
     Drawing2D.DEBUG_NotifyExternalError errName, errDescription, ErrNum, "pd2DPainter"
 End Sub
+
+Private Sub Class_Initialize()
+    m_DebugMode = Drawing2D.GetLibraryDebugMode()
+End Sub

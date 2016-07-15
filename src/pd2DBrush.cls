@@ -570,6 +570,8 @@ Private Sub Class_Initialize()
         .Height = 100
     End With
     
+    m_DebugMode = Drawing2D.GetLibraryDebugMode()
+    
 End Sub
 
 Private Sub Class_Terminate()

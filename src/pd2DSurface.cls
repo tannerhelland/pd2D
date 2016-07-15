@@ -972,6 +972,7 @@ End Sub
 Private Sub Class_Initialize()
     m_SurfaceType = P2_ST_Uninitialized
     Me.ResetAllProperties
+    m_DebugMode = Drawing2D.GetLibraryDebugMode()
 End Sub
 
 Private Sub Class_Terminate()

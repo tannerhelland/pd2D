@@ -492,7 +492,6 @@ End Function
 'Shortcut function for creating a generic painter
 Public Function QuickCreatePainter(ByRef dstPainter As pd2DPainter) As Boolean
     If (dstPainter Is Nothing) Then Set dstPainter = New pd2DPainter
-    dstPainter.SetDebugMode m_DebugMode
     QuickCreatePainter = True
 End Function
 
@@ -500,7 +499,6 @@ End Function
 Public Function QuickCreateRegionRectangle(ByRef dstRegion As pd2DRegion, ByVal rLeft As Single, ByVal rTop As Single, ByVal rWidth As Single, ByVal rHeight As Single) As Boolean
     If (dstRegion Is Nothing) Then Set dstRegion = New pd2DRegion Else dstRegion.ResetAllProperties
     With dstRegion
-        .SetDebugMode m_DebugMode
         QuickCreateRegionRectangle = .AddRectangleF(rLeft, rTop, rWidth, rHeight, P2_CM_Replace)
     End With
 End Function
@@ -509,7 +507,6 @@ End Function
 Public Function QuickCreateBlankSurface(ByRef dstSurface As pd2DSurface, ByVal surfaceWidth As Long, ByVal surfaceHeight As Long, Optional ByVal surfaceSupportsAlpha As Boolean = True, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal initialColor As Long = vbWhite, Optional ByVal initialOpacity As Single = 100#) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
-        .SetDebugMode m_DebugMode
         If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
         QuickCreateBlankSurface = .CreateBlankSurface(surfaceWidth, surfaceHeight, surfaceSupportsAlpha, initialColor, initialOpacity)
     End With
@@ -519,7 +516,6 @@ End Function
 Public Function QuickCreateSurfaceFromDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal srcHWnd As Long = 0) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
-        .SetDebugMode m_DebugMode
         If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
         QuickCreateSurfaceFromDC = .WrapSurfaceAroundDC(srcDC, srcHWnd)
     End With
@@ -528,7 +524,6 @@ End Function
 Public Function QuickCreateSurfaceFromFile(ByRef dstSurface As pd2DSurface, ByVal srcPath As String) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
-        .SetDebugMode m_DebugMode
         QuickCreateSurfaceFromFile = .CreateSurfaceFromFile(srcPath)
     End With
 End Function
@@ -537,7 +532,6 @@ End Function
 Public Function QuickCreateSolidBrush(ByRef dstBrush As pd2DBrush, Optional ByVal brushColor As Long = vbWhite, Optional ByVal brushOpacity As Single = 100#) As Boolean
     If (dstBrush Is Nothing) Then Set dstBrush = New pd2DBrush Else dstBrush.ResetAllProperties
     With dstBrush
-        .SetDebugMode m_DebugMode
         .SetBrushColor brushColor
         .SetBrushOpacity brushOpacity
         QuickCreateSolidBrush = .CreateBrush()
@@ -558,7 +552,6 @@ Public Function QuickCreateTwoColorGradientBrush(ByRef dstBrush As pd2DBrush, By
     End With
     
     With dstBrush
-        .SetDebugMode m_DebugMode
         .SetBrushMode P2_BM_Gradient
         .SetBoundaryRect gradientBoundary
         .SetBrushGradientAllSettings tmpGradient.GetGradientAsString
@@ -571,7 +564,6 @@ End Function
 Public Function QuickCreateSolidPen(ByRef dstPen As pd2DPen, Optional ByVal penWidth As Single = 1#, Optional ByVal penColor As Long = vbWhite, Optional ByVal penOpacity As Single = 100#, Optional ByVal penLineJoin As PD_2D_LineJoin = P2_LJ_Miter, Optional ByVal penLineCap As PD_2D_LineCap = P2_LC_Flat) As Boolean
     If (dstPen Is Nothing) Then Set dstPen = New pd2DPen Else dstPen.ResetAllProperties
     With dstPen
-        .SetDebugMode m_DebugMode
         .SetPenWidth penWidth
         .SetPenColor penColor
         .SetPenOpacity penOpacity
@@ -597,7 +589,6 @@ Public Function QuickCreatePairOfUIPens(ByRef dstPenBase As pd2DPen, ByRef dstPe
     If (dstPenTop Is Nothing) Then Set dstPenTop = New pd2DPen Else dstPenTop.ResetAllProperties
     
     With dstPenBase
-        .SetDebugMode m_DebugMode
         .SetPenWidth 3#
         .SetPenColor vbBlack
         .SetPenOpacity 75#
@@ -607,7 +598,6 @@ Public Function QuickCreatePairOfUIPens(ByRef dstPenBase As pd2DPen, ByRef dstPe
     End With
     
     With dstPenTop
-        .SetDebugMode m_DebugMode
         .SetPenWidth 1.6
         If useHighlightColor Then .SetPenColor RGB(80, 145, 255) Else .SetPenColor vbWhite
         .SetPenOpacity 87.5
@@ -689,12 +679,7 @@ Public Function StartRenderingBackend(Optional ByVal targetBackend As PD_2D_REND
     Select Case targetBackend
             
         Case P2_DefaultBackend, P2_GDIPlusBackend
-            #If DEBUGMODE = 1 Then
-                StartRenderingBackend = GDI_Plus.GDIP_StartEngine(True)
-            #Else
-                StartRenderingBackend = GDI_Plus.GDIP_StartEngine(False)
-            #End If
-            
+            StartRenderingBackend = GDI_Plus.GDIP_StartEngine(False)
             m_GDIPlusAvailable = StartRenderingBackend
             
         Case Else

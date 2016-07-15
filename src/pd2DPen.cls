@@ -475,6 +475,7 @@ End Function
 
 Private Sub Class_Initialize()
     Me.ResetAllProperties
+    m_DebugMode = Drawing2D.GetLibraryDebugMode()
 End Sub
 
 Private Sub Class_Terminate()
