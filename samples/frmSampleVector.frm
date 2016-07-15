@@ -502,6 +502,9 @@ Private Sub Form_Unload(Cancel As Integer)
     Set m_CompassLinesThin = Nothing
     Set m_CompassArrow = Nothing
     
+    'Note that pd2DTransforms are hiding inside the polygon collection (each polygon has its own transform object)
+    Erase m_ListOfPolygons
+    
     'As the final step at shutdown time, release the rendering backend we started inside Form_Load
     Drawing2D.StopRenderingEngine P2_DefaultBackend
     
