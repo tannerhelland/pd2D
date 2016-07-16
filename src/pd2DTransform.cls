@@ -71,6 +71,7 @@ Public Function CloneExistingTransform(ByVal srcTransform As pd2DTransform) As B
         End Select
         
         CloneExistingTransform = CBool(m_TransformHandle <> 0)
+        If (CloneExistingTransform And m_DebugMode) Then Drawing2D.DEBUG_NotifyTransformCountChange m_TransformBackend, True
         
     Else
         CloneExistingTransform = False
