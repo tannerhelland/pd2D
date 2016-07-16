@@ -142,6 +142,113 @@ Public Sub FitSizeCorrectly(ByVal srcWidth As Long, ByVal srcHeight As Long, ByV
     
 End Sub
 
+Public Sub FitSizeCorrectlyF(ByVal srcWidth As Single, ByVal srcHeight As Single, ByVal dstWidth As Single, ByVal dstHeight As Single, ByRef newWidth As Single, ByRef newHeight As Single, Optional ByVal fitInclusive As Boolean = True)
+    
+    Dim srcAspect As Double, dstAspect As Double
+    If (srcHeight > 0) And (dstHeight > 0) Then
+        srcAspect = srcWidth / srcHeight
+        dstAspect = dstWidth / dstHeight
+    Else
+        Exit Sub
+    End If
+    
+    Dim aspectLarger As Boolean
+    aspectLarger = CBool(srcAspect > dstAspect)
+    
+    'Exclusive fitting fits the opposite dimension, so simply reverse the way the dimensions are calculated
+    If (Not fitInclusive) Then aspectLarger = Not aspectLarger
+    
+    If aspectLarger Then
+        newWidth = dstWidth
+        newHeight = (srcHeight / srcWidth) * newWidth
+    Else
+        newHeight = dstHeight
+        newWidth = (srcWidth / srcHeight) * newHeight
+    End If
+    
+End Sub
+
+Public Function GetBoundaryRectOfArbitraryPoints(ByRef listOfPoints() As POINTFLOAT) As RECTF
+    
+    Dim minX As Single, maxX As Single, minY As Single, maxY As Single
+    minX = 9999999.9
+    maxX = -9999999.9
+    minY = 9999999.9
+    maxY = -9999999.9
+    
+    Dim i As Long
+    For i = LBound(listOfPoints) To UBound(listOfPoints)
+        With listOfPoints(i)
+        If (.x < minX) Then minX = .x
+        If (.x > maxX) Then maxX = .x
+        If (.y < minY) Then minY = .y
+        If (.y > maxY) Then maxY = .y
+        End With
+    Next i
+    
+    With GetBoundaryRectOfArbitraryPoints
+        .Left = minX
+        .Top = minY
+        .Width = maxX - minX
+        .Height = maxY - minY
+    End With
+
+End Function
+
+'Return the maximum value from an arbitrary list of floating point values
+Public Function MaxArbitraryListF(ParamArray listOfValues() As Variant) As Double
+    
+    If (UBound(listOfValues) >= LBound(listOfValues)) Then
+                    
+        Dim i As Long, numOfPoints As Long
+        numOfPoints = (UBound(listOfValues) - LBound(listOfValues)) + 1
+        
+        Dim maxValue As Double
+        maxValue = listOfValues(0)
+        
+        If (numOfPoints > 1) Then
+            For i = 1 To numOfPoints - 1
+                If listOfValues(i) > maxValue Then maxValue = listOfValues(i)
+            Next i
+        Else
+            MaxArbitraryListF = listOfValues(LBound(listOfValues))
+        End If
+        
+        MaxArbitraryListF = maxValue
+        
+    Else
+        Debug.Print "No points provided - MaxArbitraryListF() function failed!"
+    End If
+        
+End Function
+
+'Return the minimum value from an arbitrary list of floating point values
+Public Function MinArbitraryListF(ParamArray listOfValues() As Variant) As Double
+    
+    If (UBound(listOfValues) >= LBound(listOfValues)) Then
+                    
+        Dim i As Long, numOfPoints As Long
+        numOfPoints = (UBound(listOfValues) - LBound(listOfValues)) + 1
+        
+        Dim minValue As Double
+        minValue = listOfValues(0)
+        
+        If (numOfPoints > 1) Then
+            For i = 1 To numOfPoints - 1
+                If listOfValues(i) < minValue Then minValue = listOfValues(i)
+            Next i
+        Else
+            MinArbitraryListF = listOfValues(LBound(listOfValues))
+        End If
+        
+        MinArbitraryListF = minValue
+        
+    Else
+        Debug.Print "No points provided - MinArbitraryListF() function failed!"
+    End If
+        
+End Function
+
 'This is a modified modulo function; it handles negative values specially to ensure they work with certain distort functions
 Public Function Modulo(ByVal Quotient As Double, ByVal Divisor As Double) As Double
     Modulo = Quotient - Fix(Quotient / Divisor) * Divisor
