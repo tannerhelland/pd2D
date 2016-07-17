@@ -593,8 +593,8 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
     
 End Function
 
-'Wrap this surface around some existing hDC.  The DC can be any type (display or memory, primarily; printer should also work but
-' I haven't tested it nearly as thoroughly).
+'Wrap this surface around some existing hDC.  The DC can be any type (display or memory; printer may also work but I haven't
+' tested them *at all*).
 '
 'If this DC is associated with a window or a VB object, you should also pass the object's hWnd.  hWnds are more reliable for
 ' retrieving surface dimensions, because we can retrieve the surface's size on-demand.  (For example, if you wrap a picture box
@@ -663,6 +663,53 @@ Public Function WrapSurfaceAroundDC(ByVal srcDC As Long, Optional ByVal srcHWnd 
     
 End Function
 
+'Save the current surface to file.  To reduce the chance of unpredictable behavior (including security concerns), please pass
+' fully qualified paths, not relative ones.
+'
+'Supported formats include: BMP, GIF, JPEG, PNG, and TIFF.  (You may be able to save metafiles, but it's completely untested.)
+'
+'Note that wrapped VB objects (like picture boxes) may demonstrate unstable alpha channel behavior.  For best results, do all rendering
+' to in-memory surfaces, and use those surfaces for saving.  If the alpha channel of the source surface is ever in doubt, I recommend
+' manually converting the underlying DIB to 24-bpp prior to saving.
+'
+'Extra parameters include:
+' 1) dstFileFormat: file format of the saved image.  If no format is provided, lossless PNG will be used.
+' 2) outputColorDepth: integer value that must be a power of two (1, 2, 4, 8, 16, 24, 32).  Not all color depths are supported for
+'     all output formats.  (For example, GIFs are always 8-bpp.)  If no output depth is provided, standard GDI+ color depth rules
+'     will be obeyed.
+' 3) jpegQuality: integer on the range [0, 100] describing the output JPEG's quality.  100 = nearly lossless, 0 = extremely lossy
+Public Function SaveSurfaceToFile(ByVal dstFilename As String, Optional ByVal dstFileFormat As PD_2D_FileFormat = P2_FF_PNG, Optional ByVal jpegQuality As Long = 90) As Boolean
+
+    Select Case m_SurfaceBackend
+        Case P2_DefaultBackend, P2_GDIPlusBackend
+            
+            Dim useTmpSurfaceCopy As Boolean: useTmpSurfaceCopy = False
+            Dim tmpSurfaceCopy As pd2DSurface
+            
+            'If the output color depth is 24-bpp or less, forcibly composite our surface against white prior to saving.
+            If ((dstFileFormat = P2_FF_GIF) Or (dstFileFormat = P2_FF_JPEG)) And (Me.GetSurfaceAlphaSupport) Then
+                Drawing2D.QuickCreateBlankSurface tmpSurfaceCopy, Me.GetSurfaceWidth, Me.GetSurfaceHeight, False, True, vbWhite, 100
+                Dim cPainter As pd2DPainter
+                Drawing2D.QuickCreatePainter cPainter
+                cPainter.DrawSurfaceCroppedI tmpSurfaceCopy, 0, 0, Me.GetSurfaceWidth, Me.GetSurfaceHeight, Me, 0, 0
+                useTmpSurfaceCopy = True
+            End If
+            
+            'Retrieve the relevant surface's GDI+ bitmap handle
+            Dim gdipBitmap As Long
+            If useTmpSurfaceCopy Then gdipBitmap = tmpSurfaceCopy.GetGdipImageHandle Else gdipBitmap = Me.GetGdipImageHandle
+            
+            'GDI+ handles the rest...
+            If (gdipBitmap <> 0) Then
+                SaveSurfaceToFile = GDI_Plus.GDIPlus_ImageSaveToFile(gdipBitmap, dstFilename, dstFileFormat, jpegQuality)
+            Else
+                InternalError "Could not create GDI+ Bitmap Object", "SaveSurfaceToFile() failed because GDI+ failed to create a matching Bitmap object prior to saving."
+            End If
+        
+    End Select
+    
+End Function
+
 Public Function GetHandle() As Long
     GetHandle = m_SurfaceHandle
 End Function
@@ -679,7 +726,7 @@ Friend Function GetGdipImageHandle() As Long
         
         'Note that alpha data *will* be ignored, by design.  The only way to fix this would be to ask the caller for
         ' permission to use alpha bytes, which may not be valid as many (most?) DCs will have DDBs selected into them,
-        ' meaning alpha bytes are device-dependent and not necessarily relevant or correct.
+        ' meaning alpha bytes are device-dependent and not necessarily relevant or even correct.
         If (m_SurfaceType = P2_ST_WrapperOnly) Then
             
             'Allocating memory for new DIBs is expensive, so whenever possible, skip these steps
@@ -816,6 +863,12 @@ Public Function GetSurfaceWidth() As Long
         GetSurfaceWidth = 0
     End If
 End Function
+
+'If this is an in-memory surface, you can directly access its underlying DIB via this function.  Note that the underlying DIB
+' will be "Nothing" if this surface is not an in-memory surface (e.g. if it's just a wrapper around a DC).
+Public Property Get UnderlyingDIB() As pd2DDIB
+    Set UnderlyingDIB = m_SurfaceDIB
+End Property
 
 Public Function HasSurface() As Boolean
     HasSurface = CBool(m_SurfaceHandle <> 0)

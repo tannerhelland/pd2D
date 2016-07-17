@@ -3,7 +3,7 @@ Begin VB.Form frmSample
    Appearance      =   0  'Flat
    BackColor       =   &H80000005&
    Caption         =   "pd2D Sample Project -- github.com/tannerhelland/pd2D"
-   ClientHeight    =   8475
+   ClientHeight    =   9495
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   14325
@@ -18,10 +18,19 @@ Begin VB.Form frmSample
       Strikethrough   =   0   'False
    EndProperty
    LinkTopic       =   "Form1"
-   ScaleHeight     =   565
+   ScaleHeight     =   633
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   955
    StartUpPosition =   3  'Windows Default
+   Begin VB.CommandButton cmdSaveViewport 
+      Cancel          =   -1  'True
+      Caption         =   "save the current viewport..."
+      Height          =   615
+      Left            =   600
+      TabIndex        =   26
+      Top             =   7680
+      Width           =   3615
+   End
    Begin VB.ComboBox cboTransformQuality 
       BeginProperty Font 
          Name            =   "Segoe UI"
@@ -117,12 +126,11 @@ Begin VB.Form frmSample
       Width           =   3615
    End
    Begin VB.CommandButton cmdReset 
-      Cancel          =   -1  'True
       Caption         =   "Reset!"
       Height          =   615
       Left            =   600
       TabIndex        =   6
-      Top             =   7800
+      Top             =   8760
       Width           =   3615
    End
    Begin VB.CommandButton cmdLoadImage 
@@ -147,14 +155,33 @@ Begin VB.Form frmSample
          Strikethrough   =   0   'False
       EndProperty
       ForeColor       =   &H80000008&
-      Height          =   7320
+      Height          =   8760
       Left            =   4320
-      ScaleHeight     =   486
+      ScaleHeight     =   582
       ScaleMode       =   3  'Pixel
       ScaleWidth      =   652
       TabIndex        =   1
       Top             =   600
       Width           =   9810
+   End
+   Begin VB.Label lblTitle 
+      BackStyle       =   0  'Transparent
+      Caption         =   "save a test image"
+      BeginProperty Font 
+         Name            =   "Segoe UI"
+         Size            =   12
+         Charset         =   0
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      Height          =   315
+      Index           =   5
+      Left            =   360
+      TabIndex        =   27
+      Top             =   7320
+      Width           =   3330
    End
    Begin VB.Label lblDescription 
       AutoSize        =   -1  'True
@@ -290,7 +317,7 @@ Begin VB.Form frmSample
       Index           =   4
       Left            =   360
       TabIndex        =   5
-      Top             =   7440
+      Top             =   8400
       Width           =   3330
    End
    Begin VB.Label lblTitle 
@@ -450,7 +477,7 @@ Private Sub cboTransformQuality_Click()
 End Sub
 
 Private Sub cmdLoadImage_Click()
-        
+    
     If CBool(chkClearOnLoad.Value) Then picOutput.Cls
         
     'pd2D makes image loading fast and convenient.  Let's start by displaying a common dialog with filters
@@ -483,6 +510,37 @@ Private Function GetSampleImageFolder() As String
     If (StrComp(Right$(GetSampleImageFolder, 1), "\", vbBinaryCompare) <> 0) Then GetSampleImageFolder = GetSampleImageFolder & "\"
     GetSampleImageFolder = GetSampleImageFolder & "test images\"
 End Function
+
+Private Sub cmdSaveViewport_Click()
+    
+    'pd2D makes image saving fast and convenient.  Let's start by displaying a common dialog with filters
+    ' for all supported image formats.
+    '
+    '(Note that this pdOpenSaveDialog class is not part of pd2D, but you're welcome to use it; it came from
+    ' the PhotoDemon project and it is BSD-licensed, just like pd2D.)
+    Dim cFileSave As pdOpenSaveDialog
+    Set cFileSave = New pdOpenSaveDialog
+    
+    Dim supportedImageFormats As String
+    supportedImageFormats = "Bitmap Image (.bmp)|*.bmp|GIF Image (.gif)|*.gif|JPEG Image (.jpg)|*.jpg;*.jpeg|PNG Image (.png)|*.png|TIFF image (.tif)|*.tif;*.tiff"
+    
+    Dim defaultExtensions As String
+    defaultExtensions = ".bmp|.gif|.jpg|.png|.tif"
+    
+    'For this demo, we'll default to JPEG images, but the user can change this from the save dialog
+    Dim imageFormat As Long
+    imageFormat = 3
+    
+    Dim imgFilename As String
+    imgFilename = "test image"
+    If cFileSave.GetSaveFileName(imgFilename, "", True, supportedImageFormats, imageFormat, GetSampleImageFolder, "Please enter a new image file name", defaultExtensions, frmSample.hWnd) Then
+        
+        Debug.Print imgFilename & " - " & imageFormat
+        m_BackBuffer.SaveSurfaceToFile imgFilename, imageFormat
+        
+    End If
+    
+End Sub
 
 Private Sub Form_Load()
 
@@ -673,5 +731,7 @@ Private Sub CloneViewport()
     
     If (m_CurrentImage Is Nothing) Then Set m_CurrentImage = New pd2DSurface
     m_CurrentImage.CloneSurface tmpViewport
+    
+    If (Not m_BackBuffer Is Nothing) Then m_BackBuffer.CloneSurface m_CurrentImage
     
 End Sub
