@@ -409,7 +409,7 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
             If (hGdipImage <> 0) Then
                 
                 'Retrieve the exact file format; this may enable additional features
-                Dim srcFileFormat As PD_2D_FileFormat
+                Dim srcFileFormat As PD_2D_FileFormatImport
                 srcFileFormat = GDI_Plus.GDIPlus_ImageGetFileFormat(hGdipImage)
                 
                 'Retrieve the image's dimensions
@@ -429,7 +429,7 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
                     ' in the future as time allows.
                     
                     'Before doing anything else, we need to differentiate between WMF and EMF files.  WMF report their size differently.
-                    If (srcFileFormat = P2_FF_WMF) Then
+                    If (srcFileFormat = P2_FFI_WMF) Then
                         
                         'Retrieve the metafile's horizontal and vertical resolution
                         Dim imgHResolution As Single, imgVResolution As Single
@@ -678,7 +678,7 @@ End Function
 '     all output formats.  (For example, GIFs are always 8-bpp.)  If no output depth is provided, standard GDI+ color depth rules
 '     will be obeyed.
 ' 3) jpegQuality: integer on the range [0, 100] describing the output JPEG's quality.  100 = nearly lossless, 0 = extremely lossy
-Public Function SaveSurfaceToFile(ByVal dstFilename As String, Optional ByVal dstFileFormat As PD_2D_FileFormat = P2_FF_PNG, Optional ByVal jpegQuality As Long = 90) As Boolean
+Public Function SaveSurfaceToFile(ByVal dstFilename As String, Optional ByVal dstFileFormat As PD_2D_FileFormatExport = P2_FFE_PNG, Optional ByVal jpegQuality As Long = 90) As Boolean
 
     Select Case m_SurfaceBackend
         Case P2_DefaultBackend, P2_GDIPlusBackend
@@ -687,7 +687,7 @@ Public Function SaveSurfaceToFile(ByVal dstFilename As String, Optional ByVal ds
             Dim tmpSurfaceCopy As pd2DSurface
             
             'If the output color depth is 24-bpp or less, forcibly composite our surface against white prior to saving.
-            If ((dstFileFormat = P2_FF_GIF) Or (dstFileFormat = P2_FF_JPEG)) And (Me.GetSurfaceAlphaSupport) Then
+            If ((dstFileFormat = P2_FFE_GIF) Or (dstFileFormat = P2_FFE_JPEG)) And (Me.GetSurfaceAlphaSupport) Then
                 Drawing2D.QuickCreateBlankSurface tmpSurfaceCopy, Me.GetSurfaceWidth, Me.GetSurfaceHeight, False, True, vbWhite, 100
                 Dim cPainter As pd2DPainter
                 Drawing2D.QuickCreatePainter cPainter

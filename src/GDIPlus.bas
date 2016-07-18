@@ -1011,6 +1011,7 @@ Private Declare Function GdipResetPath Lib "gdiplus" (ByVal hPath As Long) As GP
 Private Declare Function GdipRotateMatrix Lib "gdiplus" (ByVal hMatrix As Long, ByVal rotateAngle As Single, ByVal mOrder As GP_MatrixOrder) As GP_Result
 
 Private Declare Function GdipSaveImageToFile Lib "gdiplus" (ByVal hImage As Long, ByVal ptrToFilename As Long, ByVal ptrToEncoderGUID As Long, ByVal ptrToEncoderParams As Long) As GP_Result
+Private Declare Function GdipSaveImageToStream Lib "gdiplus" (ByVal hImage As Long, ByVal dstIStream As Long, ByVal ptrToEncoderGUID As Long, ByVal ptrToEncoderParams As Long) As GP_Result
 Private Declare Function GdipScaleMatrix Lib "gdiplus" (ByVal hMatrix As Long, ByVal scaleX As Single, ByVal scaleY As Single, ByVal mOrder As GP_MatrixOrder) As GP_Result
 
 Private Declare Function GdipSetClipRect Lib "gdiplus" (ByVal hGraphics As Long, ByVal x As Single, ByVal y As Single, ByVal nWidth As Single, ByVal nHeight As Single, ByVal useCombineMode As GP_CombineMode) As GP_Result
@@ -2176,7 +2177,7 @@ Public Function GDIPlus_ImageGetDimensions(ByVal hImage As Long, ByRef dstWidth 
     End If
 End Function
 
-Public Function GDIPlus_ImageGetFileFormat(ByVal hImage As Long) As PD_2D_FileFormat
+Public Function GDIPlus_ImageGetFileFormat(ByVal hImage As Long) As PD_2D_FileFormatImport
     GDIPlus_ImageGetFileFormat = GetPd2dFileFormatFromGUID(GDIPlus_ImageGetFileFormatGUID(hImage))
 End Function
 
@@ -2212,48 +2213,48 @@ Public Function GDIPlus_ImageGetFileFormatGUID(ByVal hImage As Long) As String
 End Function
 
 'Given a GDI+ GUID format identifier, return a Long-type pd2D file format identifier
-Private Function GetPd2dFileFormatFromGUID(ByRef srcGUID As String) As PD_2D_FileFormat
+Private Function GetPd2dFileFormatFromGUID(ByRef srcGUID As String) As PD_2D_FileFormatImport
     Select Case srcGUID
         Case GP_FF_GUID_BMP, GP_FF_GUID_MemoryBMP
-            GetPd2dFileFormatFromGUID = P2_FF_BMP
+            GetPd2dFileFormatFromGUID = P2_FFI_BMP
         Case GP_FF_GUID_EMF
-            GetPd2dFileFormatFromGUID = P2_FF_EMF
+            GetPd2dFileFormatFromGUID = P2_FFI_EMF
         Case GP_FF_GUID_WMF
-            GetPd2dFileFormatFromGUID = P2_FF_WMF
+            GetPd2dFileFormatFromGUID = P2_FFI_WMF
         Case GP_FF_GUID_JPEG
-            GetPd2dFileFormatFromGUID = P2_FF_JPEG
+            GetPd2dFileFormatFromGUID = P2_FFI_JPEG
         Case GP_FF_GUID_PNG
-            GetPd2dFileFormatFromGUID = P2_FF_PNG
+            GetPd2dFileFormatFromGUID = P2_FFI_PNG
         Case GP_FF_GUID_GIF
-            GetPd2dFileFormatFromGUID = P2_FF_GIF
+            GetPd2dFileFormatFromGUID = P2_FFI_GIF
         Case GP_FF_GUID_TIFF
-            GetPd2dFileFormatFromGUID = P2_FF_TIFF
+            GetPd2dFileFormatFromGUID = P2_FFI_TIFF
         Case GP_FF_GUID_Icon
-            GetPd2dFileFormatFromGUID = P2_FF_ICO
+            GetPd2dFileFormatFromGUID = P2_FFI_ICO
         Case Else
-            GetPd2dFileFormatFromGUID = P2_FF_Undefined
+            GetPd2dFileFormatFromGUID = P2_FFI_Undefined
     End Select
 End Function
 
 'Given a pd2D file format, return a matching GDI+ GUID format identifier (as a string; you'll need to manually
 ' convert this to a byte array, FYI!)
-Private Function GetGUIDFromPd2dFileFormat(ByVal srcFileFormat As PD_2D_FileFormat) As String
+Private Function GetGUIDFromPd2dFileFormat(ByVal srcFileFormat As PD_2D_FileFormatImport) As String
     Select Case srcFileFormat
-        Case P2_FF_BMP
+        Case P2_FFI_BMP
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_BMP
-        Case P2_FF_EMF
+        Case P2_FFI_EMF
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_EMF
-        Case P2_FF_WMF
+        Case P2_FFI_WMF
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_WMF
-        Case P2_FF_JPEG
+        Case P2_FFI_JPEG
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_JPEG
-        Case P2_FF_PNG
+        Case P2_FFI_PNG
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_PNG
-        Case P2_FF_GIF
+        Case P2_FFI_GIF
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_GIF
-        Case P2_FF_TIFF
+        Case P2_FFI_TIFF
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_TIFF
-        Case P2_FF_ICO
+        Case P2_FFI_ICO
             GetGUIDFromPd2dFileFormat = GP_FF_GUID_Icon
         Case Else
             GetGUIDFromPd2dFileFormat = vbNullString
@@ -2324,7 +2325,7 @@ Public Function GDIPlus_ImageRotateFlip(ByVal hImage As Long, ByVal typeOfRotate
 End Function
 
 'Save a surface to file.  The only property currently supported is JPEG quality; other properties are set automatically by GDI+.
-Public Function GDIPlus_ImageSaveToFile(ByVal hImage As Long, ByVal dstFilename As String, Optional ByVal dstFileFormat As PD_2D_FileFormat = P2_FF_PNG, Optional ByVal jpegQuality As Long = 85) As Boolean
+Public Function GDIPlus_ImageSaveToFile(ByVal hImage As Long, ByVal dstFilename As String, Optional ByVal dstFileFormat As PD_2D_FileFormatExport = P2_FFE_PNG, Optional ByVal jpegQuality As Long = 85) As Boolean
         
     On Error GoTo GDIPlusSaveError
     
@@ -2332,13 +2333,41 @@ Public Function GDIPlus_ImageSaveToFile(ByVal hImage As Long, ByVal dstFilename 
     Dim exporterGUID(0 To 15) As Byte
     If GetEncoderGUIDForPd2dFormat(dstFileFormat, VarPtr(exporterGUID(0))) Then
     
-        'Like export format, GDI+ also uses GUIDs to define export properties
-        Dim tmpEncoderParams As GP_EncoderParameters
+        'Like export format, GDI+ also uses GUIDs to define export properties.  If multiple encoder parameters
+        ' are in use, these need to be merged into sequential order (because GDI+ only takes a pointer).
+        ' pd2D does not currently cover this use-case; it always assumes there are only 0 or 1 parameters in use.
+        ' To use multiple parameters, you would need copy the first GP_EncoderParameters entry into the
+        ' fullEncoderParams() array, like normal, but with the Count value set to the number of parameters.
+        ' Then, you would need to copy subsequent parameters into place *after* it.  (But *only* the parameters,
+        ' not additional "Count" values.)
+        '
+        'Look at PhotoDemon's source code for an example of how to do this.
+        Dim paramsInUse As Boolean: paramsInUse = False
+        Dim tmpEncoderParams As GP_EncoderParameters, tmpConstString As String
         Dim fullEncoderParams() As Byte
+        
+        If (dstFileFormat = P2_FFE_JPEG) Then
+            
+            paramsInUse = True
+            
+            tmpEncoderParams.EP_Count = 1
+            With tmpEncoderParams.EP_Parameter
+                .EP_NumOfValues = 1
+                .EP_ValueType = GP_EVT_Long
+                tmpConstString = GP_EP_Quality
+                CLSIDFromString StrPtr(tmpConstString), VarPtr(.EP_GUID(0))
+                .EP_ValuePtr = VarPtr(jpegQuality)
+            End With
+            
+        End If
         
         'Perform the export and return
         Dim tmpReturn As GP_Result
-        tmpReturn = GdipSaveImageToFile(hImage, StrPtr(dstFilename), VarPtr(exporterGUID(0)), 0&)
+        If paramsInUse Then
+            tmpReturn = GdipSaveImageToFile(hImage, StrPtr(dstFilename), VarPtr(exporterGUID(0)), VarPtr(tmpEncoderParams))
+        Else
+            tmpReturn = GdipSaveImageToFile(hImage, StrPtr(dstFilename), VarPtr(exporterGUID(0)), 0&)
+        End If
         
         If (tmpReturn = GP_OK) Then
             GDIPlus_ImageSaveToFile = True
@@ -2361,22 +2390,22 @@ End Function
 
 'When exporting images, we need to find the unique GUID for a given exporter.  Matching via mimetype is a
 ' straightforward way to do this, and is the recommended solution from MSDN (see https://msdn.microsoft.com/en-us/library/ms533843(v=vs.85).aspx)
-Private Function GetEncoderGUIDForPd2dFormat(ByVal srcFormat As PD_2D_FileFormat, ByVal ptrToDstGuid As Long) As Boolean
+Private Function GetEncoderGUIDForPd2dFormat(ByVal srcFormat As PD_2D_FileFormatExport, ByVal ptrToDstGuid As Long) As Boolean
     
     GetEncoderGUIDForPd2dFormat = False
     
     'Generate a matching mimetype for the given format
     Dim srcMimetype As String
     Select Case srcFormat
-        Case P2_FF_BMP
+        Case P2_FFE_BMP
             srcMimetype = "image/bmp"
-        Case P2_FF_GIF
+        Case P2_FFE_GIF
             srcMimetype = "image/gif"
-        Case P2_FF_JPEG
+        Case P2_FFE_JPEG
             srcMimetype = "image/jpeg"
-        Case P2_FF_PNG
+        Case P2_FFE_PNG
             srcMimetype = "image/png"
-        Case P2_FF_TIFF
+        Case P2_FFE_TIFF
             srcMimetype = "image/tiff"
         Case Else
             srcMimetype = vbNullString
@@ -2410,13 +2439,13 @@ Private Function GetEncoderGUIDForPd2dFormat(ByVal srcFormat As PD_2D_FileFormat
                         If (strLength <> 0) Then
                             tmpMimeType = String$(strLength, 0&)
                             CopyMemory_Strict StrPtr(tmpMimeType), tmpCodec.IC_MimeType, strLength * 2
-                        End If
-                        
-                        'If we find a match, copy the encoder GUID and exit
-                        If (StrComp(srcMimetype, tmpMimeType, vbBinaryCompare) = 0) Then
-                            GetEncoderGUIDForPd2dFormat = True
-                            CopyMemory_Strict ptrToDstGuid, VarPtr(tmpCodec.IC_ClassID(0)), 16&
-                            Exit For
+                            
+                            'If we find a match, copy the encoder GUID and exit
+                            If (StrComp(srcMimetype, tmpMimeType, vbBinaryCompare) = 0) Then
+                                GetEncoderGUIDForPd2dFormat = True
+                                CopyMemory_Strict ptrToDstGuid, VarPtr(tmpCodec.IC_ClassID(0)), 16&
+                                Exit For
+                            End If
                         End If
                         
                     Next i

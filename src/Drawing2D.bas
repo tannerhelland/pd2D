@@ -192,20 +192,32 @@ End Enum
     Private Const P2_DS_Solid = 0&, P2_DS_Dash = 1&, P2_DS_Dot = 2&, P2_DS_DashDot = 3&, P2_DS_DashDotDot = 4&, P2_DS_Custom = 5&
 #End If
 
-Public Enum PD_2D_FileFormat
-    P2_FF_Undefined = -1
-    P2_FF_BMP = 0
-    P2_FF_ICO = 1
-    P2_FF_JPEG = 2
-    P2_FF_GIF = 3
-    P2_FF_PNG = 4
-    P2_FF_TIFF = 5
-    P2_FF_WMF = 6
-    P2_FF_EMF = 7
+Public Enum PD_2D_FileFormatImport
+    P2_FFI_Undefined = -1
+    P2_FFI_BMP = 0
+    P2_FFI_ICO = 1
+    P2_FFI_JPEG = 2
+    P2_FFI_GIF = 3
+    P2_FFI_PNG = 4
+    P2_FFI_TIFF = 5
+    P2_FFI_WMF = 6
+    P2_FFI_EMF = 7
 End Enum
 
 #If False Then
-    Private Const P2_FF_Undefined = -1, P2_FF_BMP = 0, P2_FF_ICO = 1, P2_FF_JPEG = 2, P2_FF_GIF = 3, P2_FF_PNG = 4, P2_FF_TIFF = 5, P2_FF_WMF = 6, P2_FF_EMF = 7
+    Private Const P2_FFI_Undefined = -1, P2_FFI_BMP = 0, P2_FFI_ICO = 1, P2_FFI_JPEG = 2, P2_FFI_GIF = 3, P2_FFI_PNG = 4, P2_FFI_TIFF = 5, P2_FFI_WMF = 6, P2_FFI_EMF = 7
+#End If
+
+Public Enum PD_2D_FileFormatExport
+    P2_FFE_BMP = 0
+    P2_FFE_GIF = 1
+    P2_FFE_JPEG = 2
+    P2_FFE_PNG = 3
+    P2_FFE_TIFF = 4
+End Enum
+
+#If False Then
+    Private Const P2_FFE_BMP = 0, P2_FFE_GIF = 1, P2_FFE_JPEG = 2, P2_FFE_PNG = 3, P2_FFE_TIFF = 4
 #End If
 
 Public Enum PD_2D_FillRule
@@ -466,23 +478,23 @@ Public Function ExtractBlue(ByVal srcColor As Long) As Integer
     ExtractBlue = (srcColor \ 65536) And 255
 End Function
 
-Public Function GetNameOfFileFormat(ByVal srcFormat As PD_2D_FileFormat) As String
+Public Function GetNameOfFileFormat(ByVal srcFormat As PD_2D_FileFormatImport) As String
     Select Case srcFormat
-        Case P2_FF_BMP
+        Case P2_FFI_BMP
             GetNameOfFileFormat = "BMP"
-        Case P2_FF_ICO
+        Case P2_FFI_ICO
             GetNameOfFileFormat = "Icon"
-        Case P2_FF_JPEG
+        Case P2_FFI_JPEG
             GetNameOfFileFormat = "JPEG"
-        Case P2_FF_GIF
+        Case P2_FFI_GIF
             GetNameOfFileFormat = "GIF"
-        Case P2_FF_PNG
+        Case P2_FFI_PNG
             GetNameOfFileFormat = "PNG"
-        Case P2_FF_TIFF
+        Case P2_FFI_TIFF
             GetNameOfFileFormat = "TIFF"
-        Case P2_FF_WMF
+        Case P2_FFI_WMF
             GetNameOfFileFormat = "WMF"
-        Case P2_FF_EMF
+        Case P2_FFI_EMF
             GetNameOfFileFormat = "EMF"
         Case Else
             GetNameOfFileFormat = "Unknown file format"

@@ -535,8 +535,9 @@ Private Sub cmdSaveViewport_Click()
     imgFilename = "test image"
     If cFileSave.GetSaveFileName(imgFilename, "", True, supportedImageFormats, imageFormat, GetSampleImageFolder, "Please enter a new image file name", defaultExtensions, frmSample.hWnd) Then
         
-        Debug.Print imgFilename & " - " & imageFormat
-        m_BackBuffer.SaveSurfaceToFile imgFilename, imageFormat
+        'Note that common dialog indexes are 1-based, while PD file format constants are 0-based.  That's why we subtract one
+        ' from the common dialog filter result.
+        m_BackBuffer.SaveSurfaceToFile imgFilename, imageFormat - 1, 85
         
     End If
     
