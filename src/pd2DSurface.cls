@@ -392,202 +392,241 @@ Public Function CreateSurfaceFromFile(ByVal srcFilename As String, Optional ByVa
     Select Case m_SurfaceBackend
         Case P2_DefaultBackend, P2_GDIPlusBackend
             
-            Dim emfPlusConversionSuccessful As Boolean
-            emfPlusConversionSuccessful = False
-            
             'To simplify handling of surface(s) created from file, we are only going to lean on GDI+ for the initial image
             ' file parsing.  Once the image is loaded, we will transfer it to an internally managed DIB; this frees us from
             ' obnoxious GDI+ constraints (like being forced to maintain file access for the lifetime of the image object).
             '
             'One downside of this approach is that metafiles will be forcibly rasterized.  This behavior could be "fixed"
-            ' in a future release, but knowing all surfaces are raster-type saves us a lot of trouble, frankly.
+            ' in a future release, but honestly, knowing all surfaces are raster-type saves us a lot of trouble.
             
             'Start by using GDI+ to load the file into a GDI+ container.
             Dim hGdipImage As Long, isImageMetafile As Boolean
             hGdipImage = GDI_Plus.GDIPlus_ImageCreateFromFile(srcFilename, isImageMetafile)
             
             If (hGdipImage <> 0) Then
-                
-                'Retrieve the exact file format; this may enable additional features
-                Dim srcFileFormat As PD_2D_FileFormatImport
-                srcFileFormat = GDI_Plus.GDIPlus_ImageGetFileFormat(hGdipImage)
-                
-                'Retrieve the image's dimensions
-                Dim imgWidth As Long, imgHeight As Long
-                GDI_Plus.GDIPlus_ImageGetDimensions hGdipImage, imgWidth, imgHeight
-                
-                Dim tmpPropertyBuffer() As Byte
-                
-                'If the source image is a metafile, we can enable some bonus features on Vista+
-                If isImageMetafile Then
-                    
-                    'Ideally, we'd want to keep the metafile in vector format, but in practice, this adds a lot of complexity to the library.
-                    ' (For example, implementing something like a distort filter on a vector object is impossible, so we'd need to add
-                    ' auto-rasterization capabilities to a LOT of places, and I don't want to do that right now.)
-                    '
-                    'Instead, pd2D rasterizes metafiles at import-time to the size suggested by the file itself.  This can be reevaluated
-                    ' in the future as time allows.
-                    
-                    'Before doing anything else, we need to differentiate between WMF and EMF files.  WMF report their size differently.
-                    If (srcFileFormat = P2_FFI_WMF) Then
-                        
-                        'Retrieve the metafile's horizontal and vertical resolution
-                        Dim imgHResolution As Single, imgVResolution As Single
-                        GDI_Plus.GDIPlus_ImageGetResolution hGdipImage, imgHResolution, imgVResolution
-                        
-                        'I assume 96 is used because it's the default DPI value in Windows.  I have not tested if different system DPI values
-                        ' affect the way GDI+ reports metafile size.
-                        If (imgHResolution <> 0) Then imgWidth = imgWidth * (96# / imgHResolution)
-                        If (imgVResolution <> 0) Then imgHeight = imgHeight * (96# / imgVResolution)
-                        
-                    End If
-                    
-                    'If GDI+ v1.1 is available, we can translate EMFs and WMFs into the new GDI+ EMF+ format, which supports antialiasing
-                    ' and alpha channels (among other cool features).
-                    If GDI_Plus.IsGDIPlusV11Available Then
-                        
-                        'Create a temporary GDI+ graphics object, whose properties will be used to control the render state of the EMF
-                        Dim tmpSettingsDIB As pd2DDIB
-                        Set tmpSettingsDIB = New pd2DDIB
-                        tmpSettingsDIB.CreateBlank 8, 8, 32, 0, 0
-                        
-                        Dim tmpGraphics As Long
-                        tmpGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(tmpSettingsDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_Half)
-                        
-                        'Attempt to convert the EMF to EMF+ format
-                        Dim newImageHandle As Long
-                        If GDI_Plus.GDIPlus_ImageUpgradeMetafile(hGdipImage, tmpGraphics, newImageHandle) Then
-                            emfPlusConversionSuccessful = True
-                            GDI_Plus.ReleaseGDIPlusImage hGdipImage
-                            hGdipImage = newImageHandle
-                        Else
-                            InternalError "Metafile upgrade failed", "Could not convert old-style WMF or EMF to new EMF+ format"
-                        End If
-                        
-                        'Release all the temporary objects we created for the conversion
-                        If (tmpGraphics <> 0) Then GDI_Plus.ReleaseGDIPlusGraphics tmpGraphics
-                        Set tmpSettingsDIB = Nothing
-                        
-                    End If
-                    
-                'If the source image is a raster file, we can also enable some bonus features
-                Else
-                
-                    'Automatically apply any orientation metadata, if present
-                    If GDI_Plus.GDIPlus_ImageGetProperty(hGdipImage, GP_PT_Orientation, tmpPropertyBuffer) Then
-                    
-                        'The first 16 bytes of a GDI+ property are ignored.  For the orientation property, we need the MSB of the
-                        ' 2-byte trailer of the returned array.
-                        Select Case tmpPropertyBuffer(UBound(tmpPropertyBuffer) - 1)
-                        
-                            'For details on what the different orientation values mean, visit https://msdn.microsoft.com/en-us/library/ms534416(v=vs.85).aspx
-                            Case 1
-                                'Standard orientation; no modifications needed
-                            Case 2
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_NoneFlipX
-                            Case 3
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_180FlipNone
-                            Case 4
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_NoneFlipY
-                            Case 5
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_270FlipY
-                            Case 6
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_90FlipNone
-                            Case 7
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_90FlipY
-                            Case 8
-                                GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_270FlipNone
-                        End Select
-                    
-                    End If
-                
-                End If
-                
-                'Check for the presence of an alpha channel
-                Dim imgPixelFormat As GP_PixelFormat, hasAlpha As Boolean
-                imgPixelFormat = GDI_Plus.GDIPlus_ImageGetPixelFormat(hGdipImage)
-                hasAlpha = CBool((imgPixelFormat And GP_PF_Alpha) <> 0) Or CBool((imgPixelFormat And GP_PF_PreMultAlpha) <> 0)
-                
-                'Metafiles require special handling on Vista and earlier
-                Set m_SurfaceDIB = New pd2DDIB
-                
-                If isImageMetafile Then
-                    If emfPlusConversionSuccessful Or hasAlpha Then
-                        m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 32, 0, 0
-                    Else
-                        m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 24
-                    End If
-                Else
-                    m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 32, 0, 0
-                End If
-                
-                'It's finally time to copy the GDI+ image data into our internal DIB container.  Note that 32-bpp images are
-                ' handled differently from 24-bpp images, due to some quirks with GDI+.
-                If hasAlpha Then
-                    
-                    'Make sure the image is in 32-bpp premultiplied ARGB format
-                    If (imgPixelFormat <> GP_PF_32bppPARGB) And (Not isImageMetafile) Then GDI_Plus.GDIPlus_ImageForcePremultipliedAlpha hGdipImage, imgWidth, imgHeight
-                    m_SurfaceDIB.SetInitialAlphaPremultiplicationState True
-                    
-                    'We are now going to copy the image's data directly into our destination DIB by using LockBits.  Very fast, and not much code!
-                    
-                    'Start by preparing a GP_BitmapData variable, which describes how we want GDI+ to lock the data.  (In our case, we instruct
-                    ' it to copy the data into a buffer of our own creation.)
-                    Dim copyBitmapData As GP_BitmapData
-                    With copyBitmapData
-                        .BD_Width = imgWidth
-                        .BD_Height = imgHeight
-                        .BD_PixelFormat = GP_PF_32bppPARGB
-                        .BD_Stride = m_SurfaceDIB.GetDIBStride
-                        .BD_Scan0 = m_SurfaceDIB.GetDIBPointer
-                    End With
-                    
-                    'Next, prepare a clipping rect
-                    Dim tmpRect As RECTL
-                    With tmpRect
-                        .Left = 0
-                        .Top = 0
-                        .Right = imgWidth
-                        .Bottom = imgHeight
-                    End With
-                    
-                    'Use LockBits to perform the copy for us.
-                    CreateSurfaceFromFile = GDI_Plus.GDIPlus_ImageLockBits(hGdipImage, tmpRect, copyBitmapData, GP_BLM_UserInputBuf Or GP_BLM_Write Or GP_BLM_Read, GP_PF_32bppPARGB)
-                    GDI_Plus.GDIPlus_ImageUnlockBits hGdipImage, copyBitmapData
-                    
-                '24-bpp images can be rendered directly onto our internal DIB
-                Else
-                    Dim hGraphics As Long
-                    hGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_None)
-                    CreateSurfaceFromFile = GDI_Plus.GDIPlus_DrawImageRectI(hGraphics, hGdipImage, 0, 0, imgWidth, imgHeight)
-                    GDI_Plus.ReleaseGDIPlusGraphics hGraphics
-                End If
-                
-                'Release any remaining GDI+ handles and exit
-                GDI_Plus.ReleaseGDIPlusImage hGdipImage
-                
-                'If successful, relay any remaining surface properties to the GDI+ container associated with this surface
-                If CreateSurfaceFromFile Then
-                    m_SurfaceType = P2_ST_Bitmap
-                    m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_AntiAlias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
-                    CreateSurfaceFromFile = (m_SurfaceHandle <> 0)
-                    
-                    'Apply any other stored settings to the newly created surface
-                    If CreateSurfaceFromFile Then
-                        RelayPropertyChangeToBackend P2_SurfaceBlendUsingSRGBGamma
-                        RelayPropertyChangeToBackend P2_SurfaceRenderingOriginX
-                        RelayPropertyChangeToBackend P2_SurfaceRenderingOriginY
-                        RelayPropertyChangeToBackend P2_SurfaceResizeQuality
-                    End If
-                    
-                End If
-                
+                CreateSurfaceFromFile = InternalGDIPlusLoadImage(hGdipImage, isImageMetafile, fixJPEGOrientation)
             Else
                 CreateSurfaceFromFile = False
             End If
             
             'When debug mode is active, all object creations are reported back to the master Drawing2D module
             If (CreateSurfaceFromFile And m_DebugMode) Then Drawing2D.DEBUG_NotifySurfaceCountChange m_SurfaceBackend, True
+            
+    End Select
+    
+End Function
+
+'GDI+ load helper; this lets us share code between images loaded from file, and loaded from array (memory)
+Private Function InternalGDIPlusLoadImage(ByVal hGdipImage As Long, Optional ByVal isImageMetafile As Boolean = False, Optional ByVal fixJPEGOrientation As Boolean = True) As Boolean
+
+    If (hGdipImage <> 0) Then
+        
+        Dim emfPlusConversionSuccessful As Boolean
+        emfPlusConversionSuccessful = False
+        
+        'Retrieve the exact file format; this may enable additional features
+        Dim srcFileFormat As PD_2D_FileFormatImport
+        srcFileFormat = GDI_Plus.GDIPlus_ImageGetFileFormat(hGdipImage)
+        
+        'Retrieve the image's dimensions
+        Dim imgWidth As Long, imgHeight As Long
+        GDI_Plus.GDIPlus_ImageGetDimensions hGdipImage, imgWidth, imgHeight
+        
+        Dim tmpPropertyBuffer() As Byte
+        
+        'If the source image is a metafile, we can enable some bonus features on Vista+
+        If isImageMetafile Then
+            
+            'Ideally, we'd want to keep the metafile in vector format, but in practice, this adds a lot of complexity to the library.
+            ' (For example, implementing something like a distort filter on a vector object is impossible, so we'd need to add
+            ' auto-rasterization capabilities to a LOT of places, and I don't want to do that right now.)
+            '
+            'Instead, pd2D rasterizes metafiles at import-time to the size suggested by the file itself.  This can be reevaluated
+            ' in the future as time allows.
+            
+            'Before doing anything else, we need to differentiate between WMF and EMF files.  WMF report their size differently.
+            If (srcFileFormat = P2_FFI_WMF) Then
+                
+                'Retrieve the metafile's horizontal and vertical resolution
+                Dim imgHResolution As Single, imgVResolution As Single
+                GDI_Plus.GDIPlus_ImageGetResolution hGdipImage, imgHResolution, imgVResolution
+                
+                'I assume 96 is used because it's the default DPI value in Windows.  I have not tested if different system DPI values
+                ' affect the way GDI+ reports metafile size.
+                If (imgHResolution <> 0) Then imgWidth = imgWidth * (96# / imgHResolution)
+                If (imgVResolution <> 0) Then imgHeight = imgHeight * (96# / imgVResolution)
+                
+            End If
+            
+            'If GDI+ v1.1 is available, we can translate EMFs and WMFs into the new GDI+ EMF+ format, which supports antialiasing
+            ' and alpha channels (among other cool features).
+            If GDI_Plus.IsGDIPlusV11Available Then
+                
+                'Create a temporary GDI+ graphics object, whose properties will be used to control the render state of the EMF
+                Dim tmpSettingsDIB As pd2DDIB
+                Set tmpSettingsDIB = New pd2DDIB
+                tmpSettingsDIB.CreateBlank 8, 8, 32, 0, 0
+                
+                Dim tmpGraphics As Long
+                tmpGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(tmpSettingsDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_Half)
+                
+                'Attempt to convert the EMF to EMF+ format
+                Dim newImageHandle As Long
+                If GDI_Plus.GDIPlus_ImageUpgradeMetafile(hGdipImage, tmpGraphics, newImageHandle) Then
+                    emfPlusConversionSuccessful = True
+                    GDI_Plus.ReleaseGDIPlusImage hGdipImage
+                    hGdipImage = newImageHandle
+                Else
+                    InternalError "Metafile upgrade failed", "Could not convert old-style WMF or EMF to new EMF+ format"
+                End If
+                
+                'Release all the temporary objects we created for the conversion
+                If (tmpGraphics <> 0) Then GDI_Plus.ReleaseGDIPlusGraphics tmpGraphics
+                Set tmpSettingsDIB = Nothing
+                
+            End If
+            
+        'If the source image is a raster file, we can also enable some bonus features
+        Else
+        
+            'Automatically apply any orientation metadata, if present
+            If GDI_Plus.GDIPlus_ImageGetProperty(hGdipImage, GP_PT_Orientation, tmpPropertyBuffer) Then
+            
+                'The first 16 bytes of a GDI+ property are ignored.  For the orientation property, we need the MSB of the
+                ' 2-byte trailer of the returned array.
+                Select Case tmpPropertyBuffer(UBound(tmpPropertyBuffer) - 1)
+                
+                    'For details on what the different orientation values mean, visit https://msdn.microsoft.com/en-us/library/ms534416(v=vs.85).aspx
+                    Case 1
+                        'Standard orientation; no modifications needed
+                    Case 2
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_NoneFlipX
+                    Case 3
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_180FlipNone
+                    Case 4
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_NoneFlipY
+                    Case 5
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_270FlipY
+                    Case 6
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_90FlipNone
+                    Case 7
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_90FlipY
+                    Case 8
+                        GDI_Plus.GDIPlus_ImageRotateFlip hGdipImage, GP_RF_270FlipNone
+                End Select
+            
+            End If
+        
+        End If
+        
+        'Check for the presence of an alpha channel
+        Dim imgPixelFormat As GP_PixelFormat, hasAlpha As Boolean
+        imgPixelFormat = GDI_Plus.GDIPlus_ImageGetPixelFormat(hGdipImage)
+        hasAlpha = CBool((imgPixelFormat And GP_PF_Alpha) <> 0) Or CBool((imgPixelFormat And GP_PF_PreMultAlpha) <> 0)
+        
+        'Metafiles require special handling on Vista and earlier
+        Set m_SurfaceDIB = New pd2DDIB
+        
+        If isImageMetafile Then
+            If emfPlusConversionSuccessful Or hasAlpha Then
+                m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 32, 0, 0
+            Else
+                m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 24
+            End If
+        Else
+            m_SurfaceDIB.CreateBlank imgWidth, imgHeight, 32, 0, 0
+        End If
+        
+        'It's finally time to copy the GDI+ image data into our internal DIB container.  Note that 32-bpp images are
+        ' handled differently from 24-bpp images, due to some quirks with GDI+.
+        If hasAlpha Then
+            
+            'Make sure the image is in 32-bpp premultiplied ARGB format
+            If (imgPixelFormat <> GP_PF_32bppPARGB) And (Not isImageMetafile) Then GDI_Plus.GDIPlus_ImageForcePremultipliedAlpha hGdipImage, imgWidth, imgHeight
+            m_SurfaceDIB.SetInitialAlphaPremultiplicationState True
+            
+            'We are now going to copy the image's data directly into our destination DIB by using LockBits.  Very fast, and not much code!
+            
+            'Start by preparing a GP_BitmapData variable, which describes how we want GDI+ to lock the data.  (In our case, we instruct
+            ' it to copy the data into a buffer of our own creation.)
+            Dim copyBitmapData As GP_BitmapData
+            With copyBitmapData
+                .BD_Width = imgWidth
+                .BD_Height = imgHeight
+                .BD_PixelFormat = GP_PF_32bppPARGB
+                .BD_Stride = m_SurfaceDIB.GetDIBStride
+                .BD_Scan0 = m_SurfaceDIB.GetDIBPointer
+            End With
+            
+            'Next, prepare a clipping rect
+            Dim tmpRect As RECTL
+            With tmpRect
+                .Left = 0
+                .Top = 0
+                .Right = imgWidth
+                .Bottom = imgHeight
+            End With
+            
+            'Use LockBits to perform the copy for us.
+            InternalGDIPlusLoadImage = GDI_Plus.GDIPlus_ImageLockBits(hGdipImage, tmpRect, copyBitmapData, GP_BLM_UserInputBuf Or GP_BLM_Write Or GP_BLM_Read, GP_PF_32bppPARGB)
+            GDI_Plus.GDIPlus_ImageUnlockBits hGdipImage, copyBitmapData
+            
+        '24-bpp images can be rendered directly onto our internal DIB
+        Else
+            Dim hGraphics As Long
+            hGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_None)
+            InternalGDIPlusLoadImage = GDI_Plus.GDIPlus_DrawImageRectI(hGraphics, hGdipImage, 0, 0, imgWidth, imgHeight)
+            GDI_Plus.ReleaseGDIPlusGraphics hGraphics
+        End If
+        
+        'Release any remaining GDI+ handles and exit
+        GDI_Plus.ReleaseGDIPlusImage hGdipImage
+        
+        'If successful, relay any remaining surface properties to the GDI+ container associated with this surface
+        If InternalGDIPlusLoadImage Then
+            m_SurfaceType = P2_ST_Bitmap
+            m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_AntiAlias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
+            InternalGDIPlusLoadImage = (m_SurfaceHandle <> 0)
+            
+            'Apply any other stored settings to the newly created surface
+            If InternalGDIPlusLoadImage Then
+                RelayPropertyChangeToBackend P2_SurfaceBlendUsingSRGBGamma
+                RelayPropertyChangeToBackend P2_SurfaceRenderingOriginX
+                RelayPropertyChangeToBackend P2_SurfaceRenderingOriginY
+                RelayPropertyChangeToBackend P2_SurfaceResizeQuality
+            End If
+            
+        End If
+        
+    Else
+        InternalGDIPlusLoadImage = False
+    End If
+            
+End Function
+
+'If you already have an image file loaded into a VB byte array, you can use this function to load it.  Note that the source array
+' must contain a valid image file - not just a bare array of RGB values.
+'
+'Note also that you can free the array after calling this function; it does not need to be maintained post-load.
+Public Function CreateSurfaceFromArray(ByRef srcArray() As Byte, Optional ByVal fixJPEGOrientation As Boolean = True) As Boolean
+    
+    If (m_SurfaceHandle <> 0) Then ReleaseSurface
+    
+    Select Case m_SurfaceBackend
+        Case P2_DefaultBackend, P2_GDIPlusBackend
+            
+            'Start by using GDI+ to load the array into a GDI+ container.
+            Dim hGdipImage As Long, isImageMetafile As Boolean
+            hGdipImage = GDI_Plus.GDIPlus_ImageCreateFromArray(srcArray, isImageMetafile)
+            
+            If (hGdipImage <> 0) Then
+                CreateSurfaceFromArray = InternalGDIPlusLoadImage(hGdipImage, isImageMetafile, fixJPEGOrientation)
+            Else
+                CreateSurfaceFromArray = False
+            End If
+            
+            'When debug mode is active, all object creations are reported back to the master Drawing2D module
+            If (CreateSurfaceFromArray And m_DebugMode) Then Drawing2D.DEBUG_NotifySurfaceCountChange m_SurfaceBackend, True
             
     End Select
     
@@ -704,6 +743,40 @@ Public Function SaveSurfaceToFile(ByVal dstFilename As String, Optional ByVal ds
                 SaveSurfaceToFile = GDI_Plus.GDIPlus_ImageSaveToFile(gdipBitmap, dstFilename, dstFileFormat, jpegQuality)
             Else
                 InternalError "Could not create GDI+ Bitmap Object", "SaveSurfaceToFile() failed because GDI+ failed to create a matching Bitmap object prior to saving."
+            End If
+        
+    End Select
+    
+End Function
+
+'Identical function to SaveSurfaceToFile, above, except the target is a VB array.  Note that this function uses streams, so the hard drive
+' isn't touched.
+Public Function SaveSurfaceToArray(ByRef dstArray() As Byte, Optional ByVal dstFileFormat As PD_2D_FileFormatExport = P2_FFE_PNG, Optional ByVal jpegQuality As Long = 90) As Boolean
+
+    Select Case m_SurfaceBackend
+        Case P2_DefaultBackend, P2_GDIPlusBackend
+            
+            Dim useTmpSurfaceCopy As Boolean: useTmpSurfaceCopy = False
+            Dim tmpSurfaceCopy As pd2DSurface
+            
+            'If the output color depth is 24-bpp or less, forcibly composite our surface against white prior to saving.
+            If ((dstFileFormat = P2_FFE_GIF) Or (dstFileFormat = P2_FFE_JPEG)) And (Me.GetSurfaceAlphaSupport) Then
+                Drawing2D.QuickCreateBlankSurface tmpSurfaceCopy, Me.GetSurfaceWidth, Me.GetSurfaceHeight, False, True, vbWhite, 100
+                Dim cPainter As pd2DPainter
+                Drawing2D.QuickCreatePainter cPainter
+                cPainter.DrawSurfaceCroppedI tmpSurfaceCopy, 0, 0, Me.GetSurfaceWidth, Me.GetSurfaceHeight, Me, 0, 0
+                useTmpSurfaceCopy = True
+            End If
+            
+            'Retrieve the relevant surface's GDI+ bitmap handle
+            Dim gdipBitmap As Long
+            If useTmpSurfaceCopy Then gdipBitmap = tmpSurfaceCopy.GetGdipImageHandle Else gdipBitmap = Me.GetGdipImageHandle
+            
+            'GDI+ handles the rest...
+            If (gdipBitmap <> 0) Then
+                SaveSurfaceToArray = GDI_Plus.GDIPlus_ImageSaveToArray(gdipBitmap, dstArray, dstFileFormat, jpegQuality)
+            Else
+                InternalError "Could not create GDI+ Bitmap Object", "SaveSurfaceToArray() failed because GDI+ failed to create a matching Bitmap object prior to saving."
             End If
         
     End Select

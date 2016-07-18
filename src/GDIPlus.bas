@@ -1005,6 +1005,7 @@ Private Declare Function GdipIsVisiblePathPoint Lib "gdiplus" (ByVal hPath As Lo
 Private Declare Function GdipIsVisiblePathPointI Lib "gdiplus" (ByVal hPath As Long, ByVal x As Long, ByVal y As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
 
 Private Declare Function GdipLoadImageFromFile Lib "gdiplus" (ByVal ptrSrcFilename As Long, ByRef dstGdipImage As Long) As GP_Result
+Private Declare Function GdipLoadImageFromStream Lib "gdiplus" (ByVal srcIStream As Long, ByRef dstGdipImage As Long) As GP_Result
 
 Private Declare Function GdipResetClip Lib "gdiplus" (ByVal hGraphics As Long) As GP_Result
 Private Declare Function GdipResetPath Lib "gdiplus" (ByVal hPath As Long) As GP_Result
@@ -1057,8 +1058,14 @@ Private Declare Function GdipWindingModeOutline Lib "gdiplus" (ByVal hPath As Lo
 'Non-GDI+ helper functions:
 Private Declare Function CLSIDFromString Lib "ole32" (ByVal ptrToGuidString As Long, ByVal ptrToByteArray As Long) As Long
 Private Declare Function CopyMemory_Strict Lib "kernel32" Alias "RtlMoveMemory" (ByVal ptrDst As Long, ByVal ptrSrc As Long, ByVal numOfBytes As Long) As Long
+Private Declare Function CreateStreamOnHGlobal Lib "ole32" (ByVal hGlobal As Long, ByVal fDeleteOnRelease As Long, ByVal ptrToDstStream As Long) As Long
 Private Declare Function FreeLibrary Lib "kernel32" (ByVal hLibModule As Long) As Long
+Private Declare Function GetHGlobalFromStream Lib "ole32" (ByVal srcIStream As Long, ByRef dstHGlobal As Long) As Long
 Private Declare Function GetProcAddress Lib "kernel32" (ByVal hModule As Long, ByVal lpProcName As String) As Long
+Private Declare Function GlobalAlloc Lib "kernel32" (ByVal uFlags As Long, ByVal dwBytes As Long) As Long
+Private Declare Function GlobalLock Lib "kernel32" (ByVal hMem As Long) As Long
+Private Declare Function GlobalSize Lib "kernel32" (ByVal hMem As Long) As Long
+Private Declare Function GlobalUnlock Lib "kernel32" (ByVal hMem As Long) As Long
 Private Declare Function LoadLibrary Lib "kernel32" Alias "LoadLibraryW" (ByVal lpLibFileName As Long) As Long
 Private Declare Function lstrlenA Lib "kernel32" (ByVal ptrToString As Long) As Long
 Private Declare Function lstrlenW Lib "kernel32" (ByVal ptrToString As Long) As Long
@@ -2142,6 +2149,46 @@ Public Function GDIPlus_GraphicsSetCompositingMode(ByVal dstGraphics As Long, Op
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
 End Function
 
+'Note that this function creates an image from an array containing a valid image file (e.g. not an array with
+' bare RGB values).  This is helpful for interop with other software, or if you prefer to roll your own filesystem code.
+Public Function GDIPlus_ImageCreateFromArray(ByRef srcArray() As Byte, Optional ByRef isImageMetafile As Boolean = False) As Long
+    
+    'GDI+ requires a stream object for import, so we're going to wrap a temporary stream around the source array.
+    Dim tmpStream As Long
+    
+    Dim tmpHMem As Long
+    Const GMEM_MOVEABLE As Long = &H2&
+    tmpHMem = GlobalAlloc(GMEM_MOVEABLE, UBound(srcArray) - LBound(srcArray) + 1)
+    If (tmpHMem <> 0) Then
+        
+        Dim tmpLockMem As Long
+        tmpLockMem = GlobalLock(tmpHMem)
+        If (tmpLockMem <> 0) Then
+            CopyMemory_Strict tmpLockMem, VarPtr(srcArray(LBound(srcArray))), UBound(srcArray) - LBound(srcArray) + 1
+            GlobalUnlock tmpHMem
+            CreateStreamOnHGlobal tmpHMem, 1&, VarPtr(tmpStream)
+        End If
+        
+    End If
+    
+    If (tmpStream <> 0) Then
+    
+        Dim tmpReturn As GP_Result
+        tmpReturn = GdipLoadImageFromStream(tmpStream, GDIPlus_ImageCreateFromArray)
+        If (tmpReturn = GP_OK) Then
+            Dim imgType As GP_ImageType
+            GdipGetImageType GDIPlus_ImageCreateFromArray, imgType
+            isImageMetafile = CBool(imgType = GP_IT_Metafile)
+        Else
+            InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+        End If
+        
+    Else
+        InternalGDIPlusError "IStream failure", "GDIPlus_ImageCreateFromArray() failed to wrap an IStream around the source array; load aborted."
+    End If
+    
+End Function
+
 Public Function GDIPlus_ImageCreateFromFile(ByVal srcFilename As String, Optional ByRef isImageMetafile As Boolean = False) As Long
     Dim tmpReturn As GP_Result
     tmpReturn = GdipLoadImageFromFile(StrPtr(srcFilename), GDIPlus_ImageCreateFromFile)
@@ -2322,6 +2369,97 @@ Public Function GDIPlus_ImageRotateFlip(ByVal hImage As Long, ByVal typeOfRotate
     tmpReturn = GdipImageRotateFlip(hImage, typeOfRotateFlip)
     GDIPlus_ImageRotateFlip = CBool(tmpReturn = GP_OK)
     If (tmpReturn <> GP_OK) Then InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+End Function
+
+'Save a surface to a VB byte array.  The destination array *must* be dynamic, and does not need to be dimensionsed.
+' (It will be auto-dimensioned correctly by thsi function.)
+' As with saving to file, note that the only export property currently supported is JPEG quality; other properties
+' are set automatically by GDI+.
+Public Function GDIPlus_ImageSaveToArray(ByVal hImage As Long, ByRef dstArray() As Byte, Optional ByVal dstFileFormat As PD_2D_FileFormatExport = P2_FFE_PNG, Optional ByVal jpegQuality As Long = 85) As Boolean
+        
+    On Error GoTo GDIPlusSaveError
+    
+    'GDI+ uses GUIDs to define image export encoders; retrieve the relevant encoder GUID now
+    Dim exporterGUID(0 To 15) As Byte
+    If GetEncoderGUIDForPd2dFormat(dstFileFormat, VarPtr(exporterGUID(0))) Then
+    
+        'Like export format, GDI+ also uses GUIDs to define export properties.  If multiple encoder parameters
+        ' are in use, these need to be merged into sequential order (because GDI+ only takes a pointer).
+        ' pd2D does not currently cover this use-case; it always assumes there are only 0 or 1 parameters in use.
+        ' To use multiple parameters, you would need copy the first GP_EncoderParameters entry into the
+        ' fullEncoderParams() array, like normal, but with the Count value set to the number of parameters.
+        ' Then, you would need to copy subsequent parameters into place *after* it.  (But *only* the parameters,
+        ' not additional "Count" values.)
+        '
+        'Look at PhotoDemon's source code for an example of how to do this.
+        Dim paramsInUse As Boolean: paramsInUse = False
+        Dim tmpEncoderParams As GP_EncoderParameters, tmpConstString As String
+        Dim fullEncoderParams() As Byte
+        
+        If (dstFileFormat = P2_FFE_JPEG) Then
+            
+            paramsInUse = True
+            
+            tmpEncoderParams.EP_Count = 1
+            With tmpEncoderParams.EP_Parameter
+                .EP_NumOfValues = 1
+                .EP_ValueType = GP_EVT_Long
+                tmpConstString = GP_EP_Quality
+                CLSIDFromString StrPtr(tmpConstString), VarPtr(.EP_GUID(0))
+                .EP_ValuePtr = VarPtr(jpegQuality)
+            End With
+            
+        End If
+        
+        'Prep an IStream to receive the export.  Note that we deliberately mark the stream as "free on release",
+        ' which spares us from manually releasing the stream's contents.  (They will be auto-freed when the tmpStream
+        ' object goes out of scope.)
+        Dim tmpStream As Long
+        CreateStreamOnHGlobal 0&, 1&, VarPtr(tmpStream)
+        
+        'Perform the export
+        Dim tmpReturn As GP_Result
+        If paramsInUse Then
+            tmpReturn = GdipSaveImageToStream(hImage, tmpStream, VarPtr(exporterGUID(0)), VarPtr(tmpEncoderParams))
+        Else
+            tmpReturn = GdipSaveImageToStream(hImage, tmpStream, VarPtr(exporterGUID(0)), 0&)
+        End If
+        
+        If (tmpReturn = GP_OK) Then
+        
+            'We now need to copy the contents of the stream into a VB array
+            Dim tmpHMem As Long, hMemSize As Long
+            If (GetHGlobalFromStream(tmpStream, tmpHMem) = 0) Then
+                hMemSize = GlobalSize(tmpHMem)
+                If (hMemSize <> 0) Then
+                
+                    Dim lockedMem As Long
+                    lockedMem = GlobalLock(tmpHMem)
+                    If (lockedMem <> 0) Then
+                        ReDim dstArray(0 To hMemSize - 1) As Byte
+                        CopyMemory_Strict VarPtr(dstArray(0)), lockedMem, hMemSize
+                        GlobalUnlock lockedMem
+                        GDIPlus_ImageSaveToArray = True
+                    End If
+                    
+                End If
+            End If
+            
+        Else
+            GDIPlus_ImageSaveToArray = False
+            InternalGDIPlusError "Image was not saved", "GDIPlus_ImageSaveToArray() failed; additional details follow"
+            InternalGDIPlusError vbNullString, vbNullString, tmpReturn
+        End If
+    
+    Else
+        InternalGDIPlusError "Image was not saved", "GDIPlus_ImageSaveToArray() failed; no encoder found for that image format"
+    End If
+    
+    Exit Function
+    
+GDIPlusSaveError:
+    InternalGDIPlusError "Image was not saved", "A VB error occurred inside GDIPlus_ImageSaveToFile: " & Err.Description
+    GDIPlus_ImageSaveToArray = False
 End Function
 
 'Save a surface to file.  The only property currently supported is JPEG quality; other properties are set automatically by GDI+.
