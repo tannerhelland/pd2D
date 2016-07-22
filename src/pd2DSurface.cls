@@ -960,7 +960,7 @@ End Function
 'Note that wrapped GDI surfaces will *not* touch alpha, by design, to avoid screwing up the target DC's behavior.
 Public Sub EraseSurfaceContents(Optional ByVal newColor As Long = vbWhite, Optional ByVal newAlpha As Single = 0#)
     If (m_SurfaceType = P2_ST_WrapperOnly) Then
-        GDI.FillRectToDC m_SurfaceDC, 0, 0, Me.GetSurfaceWidth, Me.GetSurfaceHeight, newColor
+        GDI.FillRectToDC m_SurfaceDC, 0, 0, Me.GetSurfaceWidth + 1, Me.GetSurfaceHeight + 1, newColor
     ElseIf (m_SurfaceType = P2_ST_Bitmap) Then
         If (Not m_SurfaceDIB Is Nothing) Then m_SurfaceDIB.FillWithColor newColor, newAlpha
     End If

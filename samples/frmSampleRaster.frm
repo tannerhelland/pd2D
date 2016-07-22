@@ -538,14 +538,7 @@ Private Sub cmdSaveViewport_Click()
         'Note that common dialog indexes are 1-based, while PD file format constants are 0-based.  That's why we subtract one
         ' from the common dialog filter result.
         m_BackBuffer.SaveSurfaceToFile imgFilename, imageFormat - 1, 15
-        
-        Dim tmpArray() As Byte
-        m_BackBuffer.SaveSurfaceToArray tmpArray, imageFormat - 1, 15
-        Debug.Print UBound(tmpArray) + 1
-        
-        m_BackBuffer.CreateSurfaceFromArray tmpArray, True
-        m_BackBuffer.CopySurfaceToDC picOutput.hDC
-        
+
     End If
     
 End Sub

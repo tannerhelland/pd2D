@@ -60,6 +60,7 @@ Private Declare Function Rectangle Lib "gdi32" (ByVal hDC As Long, ByVal x1 As L
 Private Declare Function SelectObject Lib "gdi32" (ByVal hDC As Long, ByVal hObject As Long) As Long
 
 'Helper functions from user32
+Private Declare Function FillRect Lib "user32" (ByVal hDstDC As Long, ByVal ptrToRect As Long, ByVal hSrcBrush As Long) As Long
 Private Declare Function GetClientRect Lib "user32" (ByVal hndWindow As Long, ByVal ptrToRectL As Long) As Long
 
 Public Function BitBltWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, Optional ByVal rastOp As Long = vbSrcCopy) As Boolean
@@ -123,7 +124,7 @@ Public Sub DrawLineToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Lo
 End Sub
 
 'Basic wrappers for rect-filling and rect-tracing via GDI
-Public Sub FillRectToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long, ByVal crColor As Long)
+Public Sub FillRectToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal rectWidth As Long, ByVal rectHeight As Long, ByVal crColor As Long)
 
     'Create a brush with the specified color
     Dim tmpBrush As Long
@@ -134,7 +135,15 @@ Public Sub FillRectToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Lo
     oldObject = SelectObject(targetDC, tmpBrush)
     
     'Fill the rect
-    Rectangle targetDC, x1, y1, x2, y2
+    Dim tmpRect As RECTL
+    With tmpRect
+        .Left = x1
+        .Top = y1
+        .Right = x1 + rectWidth + 1
+        .Bottom = y1 + rectHeight + 1
+    End With
+    
+    FillRect targetDC, VarPtr(tmpRect), tmpBrush
     
     'Remove the brush and delete it
     SelectObject targetDC, oldObject
