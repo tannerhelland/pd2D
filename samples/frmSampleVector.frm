@@ -435,7 +435,7 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    Drawing2D.StartRenderingBackend P2_DefaultBackend
+    Drawing2D.StartRenderingEngine P2_DefaultBackend
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     
@@ -667,6 +667,13 @@ Private Sub Test3InitializeCompass()
     m_CompassLinesThin.AddLine m_CompassCenterClient.x, m_CompassCenterClient.y - lineLengthThin / 2, m_CompassCenterClient.x, m_CompassCenterClient.y + lineLengthThin / 2
     m_CompassLinesThin.CloseCurrentFigure
     
+End Sub
+
+'Because picOutput (the main picture box) has AutoRedraw is set to FALSE, VB will raise the Paint() event for things
+' like moving or resizing the window.  We must respond to these events, as the picture box will not be redrawn otherwise.
+' (Fortunately, back buffering and pd2D make this very easy!)
+Private Sub picOutput_Paint()
+    m_BackBuffer.CopySurfaceToDC picOutput.hDC
 End Sub
 
 'During animated demonstrations, this sample timer will perform animation tasks (like moving polygon points around).

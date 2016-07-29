@@ -398,7 +398,7 @@ Attribute VB_Exposed = False
 '1) When your project starts, you must initialize a pd2D backend before doing any painting tasks.  This involves
 '   placing one line of code inside Form_Load or Sub Main():
 '
-'   Drawing2D.StartRenderingBackend P2_DefaultBackend
+'   Drawing2D.StartRenderingEngine P2_DefaultBackend
 '
 '2) When your project ends, you need to release the backend you started inside Form_Load or Sub Main(), e.g.:
 '
@@ -549,7 +549,7 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    Drawing2D.StartRenderingBackend P2_DefaultBackend
+    Drawing2D.StartRenderingEngine P2_DefaultBackend
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     

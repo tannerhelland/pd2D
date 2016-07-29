@@ -686,13 +686,13 @@ Public Sub SetLibraryDebugMode(ByVal newMode As Boolean)
 End Sub
 
 'Start a new rendering backend
-Public Function StartRenderingBackend(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
+Public Function StartRenderingEngine(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
 
     Select Case targetBackend
             
         Case P2_DefaultBackend, P2_GDIPlusBackend
-            StartRenderingBackend = GDI_Plus.GDIP_StartEngine(False)
-            m_GDIPlusAvailable = StartRenderingBackend
+            StartRenderingEngine = GDI_Plus.GDIP_StartEngine(False)
+            m_GDIPlusAvailable = StartRenderingEngine
             
         Case Else
             InternalError "Bad Parameter", "Couldn't start requested backend: backend ID unknown"
