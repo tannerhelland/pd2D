@@ -13,7 +13,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '***************************************************************************
 'PhotoDemon 2D Painting class (interface for using pd2dBrush and pd2dPen on pd2dSurface objects)
-'Copyright 2012-2016 by Tanner Helland
+'Copyright 2012-2017 by Tanner Helland
 'Created: 01/September/12
 'Last updated: 28/June/16
 'Last update: implement additional surface-to-surface rendering functions
@@ -362,6 +362,7 @@ Public Function DrawLineF(ByRef dstSurface As pd2DSurface, ByRef srcPen As pd2DP
         Select Case dstSurface.GetSurfaceBackend
             Case P2_DefaultBackend, P2_GDIPlusBackend
                 DrawLineF = GDI_Plus.GDIPlus_DrawLineF(dstSurface.GetHandle, srcPen.GetHandle, x1, y1, x2, y2)
+                If (Not DrawLineF) Then InternalError "LineDrawFailed", "GDIPlus_DrawLineF drew nothing"
         End Select
     End If
 End Function

@@ -13,7 +13,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '***************************************************************************
 'PhotoDemon 2D Rendering Surface class
-'Copyright 2012-2016 by Tanner Helland
+'Copyright 2012-2017 by Tanner Helland
 'Created: 01/September/12
 'Last updated: 10/May/16
 'Last update: split surface-specific capabilities out from GDI+ and into a safe wrapper
@@ -352,7 +352,7 @@ Public Function CreateBlankSurface(ByVal surfaceWidth As Long, ByVal surfaceHeig
             Select Case m_SurfaceBackend
                 
                 Case P2_DefaultBackend, P2_GDIPlusBackend
-                    m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_AntiAlias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
+                    m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_Antialias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
                     CreateBlankSurface = (m_SurfaceHandle <> 0)
                     
                     'Apply any other stored settings to the newly created surface
@@ -468,7 +468,7 @@ Private Function InternalGDIPlusLoadImage(ByVal hGdipImage As Long, Optional ByV
                 tmpSettingsDIB.CreateBlank 8, 8, 32, 0, 0
                 
                 Dim tmpGraphics As Long
-                tmpGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(tmpSettingsDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_Half)
+                tmpGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(tmpSettingsDIB.GetDIBDC, GP_SM_Antialias, GP_POM_Half)
                 
                 'Attempt to convert the EMF to EMF+ format
                 Dim newImageHandle As Long
@@ -574,7 +574,7 @@ Private Function InternalGDIPlusLoadImage(ByVal hGdipImage As Long, Optional ByV
         '24-bpp images can be rendered directly onto our internal DIB
         Else
             Dim hGraphics As Long
-            hGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, GP_SM_AntiAlias, GP_POM_None)
+            hGraphics = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, GP_SM_Antialias, GP_POM_None)
             InternalGDIPlusLoadImage = GDI_Plus.GDIPlus_DrawImageRectI(hGraphics, hGdipImage, 0, 0, imgWidth, imgHeight)
             GDI_Plus.ReleaseGDIPlusGraphics hGraphics
         End If
@@ -585,7 +585,7 @@ Private Function InternalGDIPlusLoadImage(ByVal hGdipImage As Long, Optional ByV
         'If successful, relay any remaining surface properties to the GDI+ container associated with this surface
         If InternalGDIPlusLoadImage Then
             m_SurfaceType = P2_ST_Bitmap
-            m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_AntiAlias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
+            m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(m_SurfaceDIB.GetDIBDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_Antialias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
             InternalGDIPlusLoadImage = (m_SurfaceHandle <> 0)
             
             'Apply any other stored settings to the newly created surface
@@ -658,7 +658,7 @@ Public Function WrapSurfaceAroundDC(ByVal srcDC As Long, Optional ByVal srcHWnd 
                 
                 Case P2_DefaultBackend, P2_GDIPlusBackend
                     
-                    m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(srcDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_AntiAlias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
+                    m_SurfaceHandle = GDI_Plus.GetGDIPlusGraphicsFromDC(srcDC, IIf(m_SurfaceAntialiasing >= P2_AA_HighQuality, GP_SM_Antialias, GP_SM_None), IIf(m_SurfacePixelOffset >= P2_PO_Half, GP_POM_Half, GP_POM_None))
                     WrapSurfaceAroundDC = (m_SurfaceHandle <> 0)
                     
                     If WrapSurfaceAroundDC Then
@@ -1035,7 +1035,7 @@ Private Sub RelayPropertyChangeToBackend(ByVal propID As PD_2D_SURFACE_SETTINGS)
                 Select Case propID
                     Case P2_SurfaceAntialiasing
                         If (m_SurfaceAntialiasing >= P2_AA_HighQuality) Then
-                            GDI_Plus.SetGDIPlusGraphicsProperty m_SurfaceHandle, propID, GP_SM_AntiAlias
+                            GDI_Plus.SetGDIPlusGraphicsProperty m_SurfaceHandle, propID, GP_SM_Antialias
                         Else
                             GDI_Plus.SetGDIPlusGraphicsProperty m_SurfaceHandle, propID, GP_SM_None
                         End If

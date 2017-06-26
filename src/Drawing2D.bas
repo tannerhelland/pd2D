@@ -1,12 +1,12 @@
 Attribute VB_Name = "Drawing2D"
 '***************************************************************************
 'High-Performance Backend-Agnostic 2D Rendering Interface
-'Copyright 2012-2016 by Tanner Helland
+'Copyright 2012-2017 by Tanner Helland
 'Created: 1/September/12
 'Last updated: 11/May/16
 'Last update: continue migrating various rendering bits out of GDI+ and into this generic renderer.
 '
-'In 2015-2016, I slowly migrated PhotoDemon to its own UI toolkit.  The new toolkit performs a ton of 2D rendering tasks,
+'In 2015-2017, I slowly migrated PhotoDemon to its own UI toolkit.  The new toolkit performs a ton of 2D rendering tasks,
 ' so it was finally time to migrate PD's hoary old GDI+ interface to a more modern solution.
 '
 'This module provides a renderer-agnostic solution for various 2D drawing tasks.  At present, it leans only on GDI+,
@@ -43,11 +43,12 @@ Public Enum PD_2D_PEN_SETTINGS
     P2_PenAlignment = 8
     P2_PenStartCap = 9
     P2_PenEndCap = 10
-    [_P2_NumOfPenSettings] = 11
+    P2_PenDashOffset = 11
+    [_P2_NumOfPenSettings] = 12
 End Enum
 
 #If False Then
-    Private Const P2_PenStyle = 0, P2_PenColor = 1, P2_PenOpacity = 2, P2_PenWidth = 3, P2_PenLineJoin = 4, P2_PenLineCap = 5, P2_PenDashCap = 6, P2_PenMiterLimit = 7, P2_PenAlignment = 8, P2_PenStartCap = 9, P2_PenEndCap = 10, P2_NumOfPenSettings = 11
+    Private Const P2_PenStyle = 0, P2_PenColor = 1, P2_PenOpacity = 2, P2_PenWidth = 3, P2_PenLineJoin = 4, P2_PenLineCap = 5, P2_PenDashCap = 6, P2_PenMiterLimit = 7, P2_PenAlignment = 8, P2_PenStartCap = 9, P2_PenEndCap = 10, P2_PenDashOffset = 11, P2_NumOfPenSettings = 12
 #End If
 
 'Brushes support a *lot* of internal settings.
@@ -395,7 +396,7 @@ Public Type RGBQUAD
    Blue As Byte
    Green As Byte
    Red As Byte
-   Alpha As Byte
+   alpha As Byte
 End Type
 
 Public Type POINTFLOAT
@@ -413,6 +414,13 @@ Public Type RECTL
     Top As Long
     Right As Long
     Bottom As Long
+End Type
+
+Public Type RECTL_WH
+    Left As Long
+    Top As Long
+    Width As Long
+    Height As Long
 End Type
 
 Public Type RECTF

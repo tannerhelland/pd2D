@@ -1,7 +1,7 @@
 Attribute VB_Name = "GDI"
 '***************************************************************************
 'GDI interop manager
-'Copyright 2001-2016 by Tanner Helland
+'Copyright 2001-2017 by Tanner Helland
 'Created: 03/April/2001
 'Last updated: 28/June/16
 'Last update: continued clean-up of PD-specific code
@@ -92,10 +92,19 @@ End Function
 'Need a quick and dirty DC for something?  Call this.  (Just remember to free the DC when you're done!)
 Public Function GetMemoryDC() As Long
     GetMemoryDC = CreateCompatibleDC(0&)
+    If (GetMemoryDC = 0) Then InternalGDIError "CreateCompatibleDC failed", "GetMemoryDC() failed to create a new DC"
 End Function
 
-Public Sub FreeMemoryDC(ByVal srcDC As Long)
-    If (srcDC <> 0) Then DeleteDC srcDC
+Public Sub FreeMemoryDC(ByRef srcDC As Long)
+    If (srcDC <> 0) Then
+        Dim failsafeCheck As Boolean
+        failsafeCheck = CBool(DeleteDC(srcDC) <> 0)
+        If failsafeCheck Then
+            srcDC = 0
+        Else
+            InternalGDIError "DeleteDC failed", "FreeMemoryDC() failed to release a source DC"
+        End If
+    End If
 End Sub
 
 Public Sub ForceGDIFlush()
@@ -106,12 +115,12 @@ End Sub
 Public Sub DrawLineToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long, ByVal crColor As Long)
     
     'Create a pen with the specified color
-    Dim newPen As Long
-    newPen = CreatePen(PS_SOLID, 1, crColor)
+    Dim tmpPen As Long
+    tmpPen = CreatePen(PS_SOLID, 1, crColor)
     
     'Select the pen into the target DC
     Dim oldObject As Long
-    oldObject = SelectObject(targetDC, newPen)
+    oldObject = SelectObject(targetDC, tmpPen)
     
     'Render the line
     MoveToEx targetDC, x1, y1, 0&
@@ -119,7 +128,7 @@ Public Sub DrawLineToDC(ByVal targetDC As Long, ByVal x1 As Long, ByVal y1 As Lo
     
     'Remove the pen and delete it
     SelectObject targetDC, oldObject
-    DeleteObject newPen
+    DeleteObject tmpPen
 
 End Sub
 
@@ -156,4 +165,3 @@ Private Sub InternalGDIError(Optional ByRef errName As String = vbNullString, Op
     Debug.Print "WARNING!  The GDI interface encountered an error: """ & errName & """ - " & errDescription
     If (ErrNum <> 0) Then Debug.Print "(Also, an error number was reported: " & ErrNum & ")"
 End Sub
-

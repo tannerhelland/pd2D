@@ -13,7 +13,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '***************************************************************************
 'PhotoDemon Gradient Manager
-'Copyright 2015-2016 by Tanner Helland
+'Copyright 2015-2017 by Tanner Helland
 'Created: 23/July/15
 'Last updated: 16/June/16
 'Last update: continued clean-up to match the new pd2D drawing system.
@@ -334,6 +334,10 @@ Friend Sub GetCopyOfPointCollection(ByRef numOfPoints As Long, ByRef srcPoints()
     CopyMemoryStrict VarPtr(srcPoints(0)), VarPtr(m_GradientPoints(0)), LenB(m_GradientPoints(0)) * m_NumOfPoints
 End Sub
 
+Friend Function GetNumOfNodes() As Long
+    GetNumOfNodes = m_NumOfPoints
+End Function
+
 Public Sub ResetAllProperties()
     
     m_GradientShape = P2_GS_Linear
@@ -406,6 +410,12 @@ End Sub
 ' it will take care of that automatically - but if you access this class manually, make sure to free the brush using the
 ' correct backend-specific function!
 Friend Function GetBrushHandle(ByRef dstRect As RECTF, Optional ByVal forceToLinearMode As Boolean = False, Optional ByVal customOpacityModifier As Single = 1#, Optional ByVal brushBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Long
+    
+    'Make sure a gradient has been created
+    If (m_NumOfPoints <= 0) Then
+        GetBrushHandle = 0
+        Exit Function
+    End If
     
     'Start by sorting the point array from lowest to highest.
     If (Not m_IsSorted) Then SortGradientArray
@@ -611,7 +621,7 @@ Private Function GetMergedRGBA(ByVal gpIndex As Long, Optional ByVal customOpaci
     dstQuad.Red = Drawing2D.ExtractRed(m_GradientPoints(gpIndex).PointRGB)
     dstQuad.Green = Drawing2D.ExtractGreen(m_GradientPoints(gpIndex).PointRGB)
     dstQuad.Blue = Drawing2D.ExtractBlue(m_GradientPoints(gpIndex).PointRGB)
-    dstQuad.Alpha = (m_GradientPoints(gpIndex).PointOpacity * customOpacityModifier) * 2.55
+    dstQuad.alpha = (m_GradientPoints(gpIndex).PointOpacity * customOpacityModifier) * 2.55
     
     Dim placeHolder As tmpLong
     LSet placeHolder = dstQuad
@@ -677,7 +687,7 @@ Friend Function GetColorAtPosition_RGBA(ByVal cPosition As Single, ByRef dstRGBA
             dstRGBA.Red = GetBlendedColors(tmpLow.Red, tmpHigh.Red, blendFactor)
             dstRGBA.Green = GetBlendedColors(tmpLow.Green, tmpHigh.Green, blendFactor)
             dstRGBA.Blue = GetBlendedColors(tmpLow.Blue, tmpHigh.Blue, blendFactor)
-            dstRGBA.Alpha = GetBlendedColors(tmpLow.Alpha, tmpHigh.Alpha, blendFactor)
+            dstRGBA.alpha = GetBlendedColors(tmpLow.alpha, tmpHigh.alpha, blendFactor)
         
         End If
         
