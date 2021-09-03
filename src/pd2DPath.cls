@@ -13,10 +13,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '***************************************************************************
 'PhotoDemon Graphics Path Wrapper
-'Copyright 2014-2017 by Tanner Helland
+'Copyright 2014-2021 by Tanner Helland
 'Created: 17/October/14 (though assembled from various parts written much earlier)
-'Last updated: 18/June/16
-'Last update: continued work on bringing this class into the pd2D fold
+'Last updated: 11/January/21
+'Last update: new helper function for adding a list of bezier curve + control points
 'Dependencies: pd2DTransform, for applying affine transformations to a path.
 '
 'This class is a VB6-friendly wrapper for the GDI+ GraphicsPath object.  It is not intended as a comprehensive interface;
@@ -26,47 +26,93 @@ Attribute VB_Exposed = False
 ' persistent by design, so no functions are provided for recreating or deleting it.  If you need to start over, use
 ' the ResetPath() function.
 '
-'All source code in this file is licensed under a modified BSD license.  This means you may use the code in your own
-' projects IF you provide attribution.  For more information, please visit http://photodemon.org/about/license/
+'Unless otherwise noted, all source code in this file is shared under a simplified BSD license.
+' Full license details are available in the LICENSE.md file, or at https://photodemon.org/license/
 '
 '***************************************************************************
 
 Option Explicit
 
-'Unlike GDI+ and DirectX, pd2DPath follows the Cairo convention and defaults to winding mode.  You can see a visualization
-' of what this means at this MSDN page: https://msdn.microsoft.com/en-us/library/windows/desktop/dd368110(v=vs.85).aspx
+Private Declare Function GdipAddPathRectangle Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As GP_Result
+Private Declare Function GdipAddPathRectangleI Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal rectWidth As Long, ByVal rectHeight As Long) As GP_Result
+Private Declare Function GdipAddPathEllipse Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As GP_Result
+Private Declare Function GdipAddPathLine Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As GP_Result
+Private Declare Function GdipAddPathLineI Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long) As GP_Result
+Private Declare Function GdipAddPathCurve2 Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipAddPathCurve2I Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToLongArray As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipAddPathClosedCurve2 Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipAddPathClosedCurve2I Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToLongArray As Long, ByVal numOfPoints As Long, ByVal curveTension As Single) As GP_Result
+Private Declare Function GdipAddPathBezier Lib "gdiplus" (ByVal hPath As Long, ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single, ByVal x3 As Single, ByVal y3 As Single, ByVal x4 As Single, ByVal y4 As Single) As GP_Result
+Private Declare Function GdipAddPathBeziers Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipAddPathLine2 Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipAddPathLine2I Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToIntArray As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipAddPathPolygon Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToFloatArray As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipAddPathPolygonI Lib "gdiplus" (ByVal hPath As Long, ByVal ptrToLongArray As Long, ByVal numOfPoints As Long) As GP_Result
+Private Declare Function GdipAddPathArc Lib "gdiplus" (ByVal hPath As Long, ByVal x As Single, ByVal y As Single, ByVal arcWidth As Single, ByVal arcHeight As Single, ByVal startAngle As Single, ByVal sweepAngle As Single) As GP_Result
+Private Declare Function GdipAddPathPath Lib "gdiplus" (ByVal hPath As Long, ByVal pathToAdd As Long, ByVal connectToPreviousPoint As Long) As GP_Result
+Private Declare Function GdipClonePath Lib "gdiplus" (ByVal srcPath As Long, ByRef dstPath As Long) As GP_Result
+Private Declare Function GdipClosePathFigure Lib "gdiplus" (ByVal hPath As Long) As GP_Result
+Private Declare Function GdipCreatePath Lib "gdiplus" (ByVal pathFillMode As GP_FillMode, ByRef dstPath As Long) As GP_Result
+Private Declare Function GdipDeletePath Lib "gdiplus" (ByVal hPath As Long) As GP_Result
+Private Declare Function GdipFlattenPath Lib "gdiplus" (ByVal hPath As Long, ByVal hTransformMatrix As Long, ByVal allowableError As Single) As GP_Result
+Private Declare Function GdipGetPathFillMode Lib "gdiplus" (ByVal hPath As Long, ByRef dstFillRule As GP_FillMode) As GP_Result
+Private Declare Function GdipGetPointCount Lib "gdiplus" (ByVal hPath As Long, ByRef dstCount As Long) As GP_Result
+Private Declare Function GdipGetPathWorldBounds Lib "gdiplus" (ByVal hPath As Long, ByRef dstBounds As RectF, ByVal tmpTransformMatrix As Long, ByVal tmpPenHandle As Long) As GP_Result
+Private Declare Function GdipGetPathWorldBoundsI Lib "gdiplus" (ByVal hPath As Long, ByRef dstBounds As RectL, ByVal tmpTransformMatrix As Long, ByVal tmpPenHandle As Long) As GP_Result
+Private Declare Function GdipIsOutlineVisiblePathPoint Lib "gdiplus" (ByVal hPath As Long, ByVal x As Single, ByVal y As Single, ByVal hPen As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
+Private Declare Function GdipIsOutlineVisiblePathPointI Lib "gdiplus" (ByVal hPath As Long, ByVal x As Long, ByVal y As Long, ByVal hPen As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
+Private Declare Function GdipIsVisiblePathPoint Lib "gdiplus" (ByVal hPath As Long, ByVal x As Single, ByVal y As Single, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
+Private Declare Function GdipIsVisiblePathPointI Lib "gdiplus" (ByVal hPath As Long, ByVal x As Long, ByVal y As Long, ByVal hGraphicsOptional As Long, ByRef dstResult As Long) As GP_Result
+Private Declare Function GdipResetPath Lib "gdiplus" (ByVal hPath As Long) As GP_Result
+Private Declare Function GdipSetPathFillMode Lib "gdiplus" (ByVal hPath As Long, ByVal pathFillMode As GP_FillMode) As GP_Result
+Private Declare Function GdipStartPathFigure Lib "gdiplus" (ByVal hPath As Long) As GP_Result
+Private Declare Function GdipTransformPath Lib "gdiplus" (ByVal hPath As Long, ByVal hMatrix As Long) As GP_Result
+Private Declare Function GdipWidenPath Lib "gdiplus" (ByVal hPath As Long, ByVal hPen As Long, ByVal hTransformMatrix As Long, ByVal allowableError As Single) As GP_Result
+Private Declare Function GdipWindingModeOutline Lib "gdiplus" (ByVal hPath As Long, ByVal hTransformationMatrix As Long, ByVal allowableError As Single) As GP_Result
+
+'Path iterators (not currently used)
+'Private Declare Function GdipCreatePathIter Lib "gdiplus" (ByRef hIterator As Long, ByVal hPath As Long) As GP_Result
+'Private Declare Function GdipDeletePathIter Lib "gdiplus" (ByVal hIterator As Long) As GP_Result
+'Private Declare Function GdipPathIterNextSubpath Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByRef dstStartIndex As Long, ByRef dstEndIndex As Long, ByRef isClosedBool As Long) As GP_Result
+'Private Declare Function GdipPathIterNextSubpathPath Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByRef dstHPath As Long, ByRef isClosedBool As Long) As GP_Result
+'Private Declare Function GdipPathIterNextPathType Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByRef dstPathType As Byte, ByRef dstStartIndex As Long, ByRef dstEndIndex As Long) As GP_Result
+'Private Declare Function GdipPathIterNextMarker Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByRef dstStartIndex As Long, ByRef dstEndIndex As Long) As GP_Result
+'Private Declare Function GdipPathIterNextMarkerPath Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByRef dstHPath As Long) As GP_Result
+'Private Declare Function GdipPathIterGetCount Lib "gdiplus" (ByVal hIterator As Long, ByRef dstCount As Long) As GP_Result
+'Private Declare Function GdipPathIterGetSubpathCount Lib "gdiplus" (ByVal hIterator As Long, ByRef dstCount As Long) As GP_Result
+'Private Declare Function GdipPathIterIsValid Lib "gdiplus" (ByVal hIterator As Long, ByRef dstIsValidBool As Long) As GP_Result
+'Private Declare Function GdipPathIterHasCurve Lib "gdiplus" (ByVal hIterator As Long, ByRef dstHasCurveBool As Long) As GP_Result
+'Private Declare Function GdipPathIterRewind Lib "gdiplus" (ByVal hIterator As Long) As GP_Result
+'Private Declare Function GdipPathIterEnumerate Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByVal ptrToDstPointFs As Long, ByVal ptrToDstTypeBytes As Long, ByVal numDstPointCount As Long) As GP_Result
+'Private Declare Function GdipPathIterCopyData Lib "gdiplus" (ByVal hIterator As Long, ByRef dstResultCount As Long, ByVal ptrToDstPointFs As Long, ByVal ptrToDstTypeBytes As Long, ByVal startIndex As Long, ByVal endIndex As Long) As GP_Result
+
+'Unlike GDI+ and DirectX, pd2DPath follows the Cairo convention and defaults to winding mode.
+' You can see a visualization of what this means at this MSDN page:
+' https://msdn.microsoft.com/en-us/library/windows/desktop/dd368110(v=vs.85).aspx
 ' If you want the old behavior, you can change it here.
 Private Const DEFAULT_FILL_RULE As Long = P2_FR_Winding
 
-'Allowable error (in pixels) when flattening a path.  This value is poorly explained on MSDN, but lower values equal a more
-' precise approximation.  See http://msdn.microsoft.com/en-us/library/ms535572%28v=vs.85%29.aspx
+'Allowable error (in pixels) when flattening a path.  This value is poorly explained on MSDN,
+' but lower values equal a more precise approximation.
+' See http://msdn.microsoft.com/en-us/library/ms535572%28v=vs.85%29.aspx
 ' The default value of 0.25 is identical to the default value in GdiPlusEnums.h.
-Private Const DEFAULT_APPROXIMATION_ERROR As Single = 0.25
+Private Const DEFAULT_APPROXIMATION_ERROR As Single = 0.25!
 
-'The backend used to manage this object.  At present, this is immutable; once set, it cannot be migrated.
-Private m_PathBackend As PD_2D_RENDERING_BACKEND
-
-'When debug mode is active, object creation and destruction is reported to the central Drawing2D module
-Private m_DebugMode As Boolean
-
-'The handle to our GDI+ path object.  This handle is automatically created with the class, and released when the
-' class is terminated.  The caller doesn't have to worry about it at all.
+'The handle to our GDI+ path object.  This handle is automatically created with the class,
+' and released when the class is terminated.  The caller shouldn't worry about it.
 Private m_PathHandle As Long
 
-'As a convenience, this class exposes some basic "transform" functions that don't require the caller to supply their own
-' pd2DTransform object.  To apply said transformations, we use an internal instance of that class.
+'As a convenience, this class exposes some basic "transform" functions that don't require
+' the caller to supply their own pd2DTransform object.  To apply said transformations,
+' we use an internal instance of that class.
 Private m_Transform As pd2DTransform
 
 Friend Function GetHandle() As Long
     GetHandle = m_PathHandle
 End Function
 
-Friend Function GetPathBackend() As PD_2D_RENDERING_BACKEND
-    GetPathBackend = m_PathBackend
-End Function
-
 Friend Function HasPath() As Boolean
-    HasPath = CBool(m_PathHandle <> 0)
+    HasPath = (m_PathHandle <> 0)
 End Function
 
 'Create an actual transform handle using the current backend and the current transform settings.
@@ -77,39 +123,30 @@ End Function
 Private Function CreatePath() As Boolean
 
     If (m_PathHandle <> 0) Then Me.ReleasePath
+    CreatePath = (GdipCreatePath(DEFAULT_FILL_RULE, m_PathHandle) = GP_OK)
     
-    'Call the backend-specific creation function
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            m_PathHandle = GDI_Plus.GDIPlus_PathCreate(DEFAULT_FILL_RULE)
-    End Select
-    
-    'When debug mode is active, all object creations are reported back to the master Drawing2D module
-    CreatePath = CBool(m_PathHandle <> 0)
-    If (CreatePath And m_DebugMode) Then Drawing2D.DEBUG_NotifyPathCountChange m_PathBackend, True
+    'When debug mode is active, all object creations are reported back to the master PD2D module
+    CreatePath = CreatePath And (m_PathHandle <> 0)
+    If (CreatePath And PD2D_DEBUG_MODE) Then PD2D.DEBUG_NotifyPathCountChange True
     
 End Function
 
 'Free the current path handle.
 Friend Function ReleasePath() As Boolean
     
+    ReleasePath = True
+    
     If (m_PathHandle <> 0) Then
         
-        'Call the backend-specific release function
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                ReleasePath = GDI_Plus.GDIPlus_PathDelete(m_PathHandle)
-        End Select
+        ReleasePath = (GdipDeletePath(m_PathHandle) = GP_OK)
         
-        'After a successful release, we must always reset the class-level handle to match, and during debug mode,
-        ' the central Drawing2D module also needs to be notified.
+        'After a successful release, we must always reset the class-level handle to match,
+        ' and during debug mode, the central PD2D module also needs to be notified.
         If ReleasePath Then
             m_PathHandle = 0
-            If (m_DebugMode) Then Drawing2D.DEBUG_NotifyPathCountChange m_PathBackend, False
+            If PD2D_DEBUG_MODE Then PD2D.DEBUG_NotifyPathCountChange False
         End If
         
-    Else
-        ReleasePath = False
     End If
     
 End Function
@@ -117,226 +154,209 @@ End Function
 'Reset the path to a blank state.  Note that this may also reset the fill mode to a backend-specific value; for consistency,
 ' we override this with PD's currently specified default fill rule (which is WINDING, although the coder can change it using
 ' the constant at the top of this class).
-Friend Sub ResetPath()
-
+Friend Function ResetPath() As Boolean
+    ResetPath = True
     If (m_PathHandle <> 0) Then
-        
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                GDI_Plus.GDIPlus_PathReset m_PathHandle
-        End Select
-        
+        ResetPath = (GdipResetPath(m_PathHandle) = GP_OK)
         Me.SetFillRule DEFAULT_FILL_RULE
-        
     End If
-    
-End Sub
+End Function
 
 'Circles are just a subset of ellipses, so we don't include any circle-specific backend code here
-Friend Sub AddCircle(ByVal centerX As Single, ByVal centerY As Single, ByVal circleRadius As Single)
+Friend Function AddCircle(ByVal centerX As Single, ByVal centerY As Single, ByVal circleRadius As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Me.AddEllipse_Absolute centerX - circleRadius, centerY - circleRadius, centerX + circleRadius, centerY + circleRadius
-End Sub
+    AddCircle = Me.AddEllipse_Absolute(centerX - circleRadius, centerY - circleRadius, centerX + circleRadius, centerY + circleRadius)
+End Function
 
-Friend Sub AddEllipse_Absolute(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single)
+Friend Function AddEllipse_Absolute(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddEllipse m_PathHandle, x1, y1, x2 - x1, y2 - y1
-    End Select
-End Sub
+    AddEllipse_Absolute = (GdipAddPathEllipse(m_PathHandle, x1, y1, x2 - x1, y2 - y1) = GP_OK)
+    If (Not AddEllipse_Absolute) Then InternalError "AddEllipse_Absolute", "GDI+ failure"
+End Function
 
-Friend Sub AddEllipse_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal ellipseWidth As Single, ByVal ellipseHeight As Single)
+Friend Function AddEllipse_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal ellipseWidth As Single, ByVal ellipseHeight As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddEllipse m_PathHandle, x1, y1, ellipseWidth, ellipseHeight
-    End Select
-End Sub
+    AddEllipse_Relative = (GdipAddPathEllipse(m_PathHandle, x1, y1, ellipseWidth, ellipseHeight) = GP_OK)
+    If (Not AddEllipse_Relative) Then InternalError "AddEllipse_Relative", "GDI+ failure"
+End Function
 
-Friend Sub AddEllipse_RectF(ByRef srcRect As RECTF)
+Friend Function AddEllipse_RectF(ByRef srcRect As RectF) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            With srcRect
-                GDI_Plus.GDIPlus_PathAddEllipse m_PathHandle, .Left, .Top, .Width, .Height
-            End With
-    End Select
-End Sub
+    AddEllipse_RectF = (GdipAddPathEllipse(m_PathHandle, srcRect.Left, srcRect.Top, srcRect.Width, srcRect.Height) = GP_OK)
+    If (Not AddEllipse_RectF) Then InternalError "AddEllipse_RectF", "GDI+ failure"
+End Function
 
-Friend Sub AddLine(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single)
+Friend Function AddLine(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddLine m_PathHandle, x1, y1, x2, y2
-    End Select
-End Sub
+    AddLine = (GdipAddPathLine(m_PathHandle, x1, y1, x2, y2) = GP_OK)
+    If (Not AddLine) Then InternalError "AddLine", "GDI+ failure"
+End Function
 
-Friend Sub AddLineInt(ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long)
+Friend Function AddLineInt(ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddLineI m_PathHandle, x1, y1, x2, y2
-    End Select
-End Sub
+    AddLineInt = (GdipAddPathLineI(m_PathHandle, x1, y1, x2, y2) = GP_OK)
+    If (Not AddLineInt) Then InternalError "AddLineInt", "GDI+ failure"
+End Function
 
-Friend Sub AddLines(ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long)
+Friend Function AddLines(ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddLines m_PathHandle, ptrToPtFArray, numOfPoints
-    End Select
-End Sub
+    AddLines = (GdipAddPathLine2(m_PathHandle, ptrToPtFArray, numOfPoints) = GP_OK)
+    If (Not AddLines) Then InternalError "AddLines", "GDI+ failure"
+End Function
 
-Friend Sub AddLinesInt(ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long)
+Friend Function AddLinesInt(ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddLinesI m_PathHandle, ptrToPtLArray, numOfPoints
-    End Select
-End Sub
+    AddLinesInt = (GdipAddPathLine2I(m_PathHandle, ptrToPtLArray, numOfPoints) = GP_OK)
+    If (Not AddLinesInt) Then InternalError "AddLinesInt", "GDI+ failure"
+End Function
 
-Friend Sub AddArc(ByRef ellipseBoundRect As RECTF, ByVal startAngle As Single, ByVal sweepAngle As Single)
+Friend Function AddArc(ByRef ellipseBoundRect As RectF, ByVal startAngle As Single, ByVal sweepAngle As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            With ellipseBoundRect
-                GDI_Plus.GDIPlus_PathAddArc m_PathHandle, .Left, .Top, .Width, .Height, startAngle, sweepAngle
-            End With
-    End Select
-End Sub
+    AddArc = (GdipAddPathArc(m_PathHandle, ellipseBoundRect.Left, ellipseBoundRect.Top, ellipseBoundRect.Width, ellipseBoundRect.Height, startAngle, sweepAngle) = GP_OK)
+    If (Not AddArc) Then InternalError "AddArc", "GDI+ failure"
+End Function
 
-Friend Sub AddArcCircular(ByVal centerX As Single, ByVal centerY As Single, ByVal arcRadius As Single, ByVal startAngle As Single, ByVal sweepAngle As Single)
+Friend Function AddArc_Absolute(ByVal x As Single, ByVal y As Single, ByVal arcWidth As Single, ByVal arcHeight As Single, ByVal startAngle As Single, ByVal sweepAngle As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddArc m_PathHandle, centerX - arcRadius, centerY - arcRadius, arcRadius * 2, arcRadius * 2, startAngle, sweepAngle
-    End Select
-End Sub
+    AddArc_Absolute = (GdipAddPathArc(m_PathHandle, x, y, arcWidth, arcHeight, startAngle, sweepAngle) = GP_OK)
+    If (Not AddArc_Absolute) Then InternalError "AddArc_Absolute", "GDI+ failure"
+End Function
 
-Friend Sub AddPolygon(ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, ByVal autoCloseShape As Boolean, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+Friend Function AddArcCircular(ByVal centerX As Single, ByVal centerY As Single, ByVal arcRadius As Single, ByVal startAngle As Single, ByVal sweepAngle As Single) As Boolean
+    If (m_PathHandle = 0) Then CreatePath
+    AddArcCircular = (GdipAddPathArc(m_PathHandle, centerX - arcRadius, centerY - arcRadius, arcRadius * 2, arcRadius * 2, startAngle, sweepAngle) = GP_OK)
+    If (Not AddArcCircular) Then InternalError "AddArcCircular", "GDI+ failure"
+End Function
+
+Friend Function AddPolygon(ByVal numOfPoints As Long, ByVal ptrToPtFArray As Long, ByVal autoCloseShape As Boolean, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curveTension As Single = 0.5!) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
+    'We have a few different options for adding this shape, based on the passed parameters.
+    If autoCloseShape Then
+        If useCurveAlgorithm Then
+            AddPolygon = (GdipAddPathClosedCurve2(m_PathHandle, ptrToPtFArray, numOfPoints, curveTension) = GP_OK)
+        Else
+            AddPolygon = (GdipAddPathPolygon(m_PathHandle, ptrToPtFArray, numOfPoints) = GP_OK)
+        End If
+    Else
+        If useCurveAlgorithm Then
+            AddPolygon = (GdipAddPathCurve2(m_PathHandle, ptrToPtFArray, numOfPoints, curveTension) = GP_OK)
+        Else
+            AddPolygon = (GdipAddPathLine2(m_PathHandle, ptrToPtFArray, numOfPoints) = GP_OK)
+        End If
+    End If
     
-            'We have a few different options for adding this shape, based on the passed parameters.
-            If autoCloseShape Then
-                If useCurveAlgorithm Then
-                    GDI_Plus.GDIPlus_PathAddClosedCurve m_PathHandle, ptrToPtFArray, numOfPoints, curvatureTension
-                Else
-                    GDI_Plus.GDIPlus_PathAddPolygon m_PathHandle, ptrToPtFArray, numOfPoints
-                End If
-            Else
-                If useCurveAlgorithm Then
-                    GDI_Plus.GDIPlus_PathAddCurve m_PathHandle, ptrToPtFArray, numOfPoints, curvatureTension
-                Else
-                    GDI_Plus.GDIPlus_PathAddLines m_PathHandle, ptrToPtFArray, numOfPoints
-                End If
-            End If
-            
-    End Select
+    If (Not AddPolygon) Then InternalError "AddPolygon", "GDI+ failure"
     
-End Sub
+End Function
 
-Friend Sub AddPolygonInt(ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long, ByVal autoCloseShape As Boolean, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+Friend Function AddPolygonInt(ByVal numOfPoints As Long, ByVal ptrToPtLArray As Long, ByVal autoCloseShape As Boolean, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curveTension As Single = 0.5!) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
+    'We have a few different options for adding this shape, based on the passed parameters.
+    If autoCloseShape Then
+        If useCurveAlgorithm Then
+            AddPolygonInt = (GdipAddPathClosedCurve2I(m_PathHandle, ptrToPtLArray, numOfPoints, curveTension) = GP_OK)
+        Else
+            AddPolygonInt = (GdipAddPathPolygonI(m_PathHandle, ptrToPtLArray, numOfPoints) = GP_OK)
+        End If
+    Else
+        If useCurveAlgorithm Then
+            AddPolygonInt = (GdipAddPathCurve2I(m_PathHandle, ptrToPtLArray, numOfPoints, curveTension) = GP_OK)
+        Else
+            AddPolygonInt = (GdipAddPathLine2I(m_PathHandle, ptrToPtLArray, numOfPoints) = GP_OK)
+        End If
+    End If
     
-            'We have a few different options for adding this shape, based on the passed parameters.
-            If autoCloseShape Then
-                If useCurveAlgorithm Then
-                    GDI_Plus.GDIPlus_PathAddClosedCurveI m_PathHandle, ptrToPtLArray, numOfPoints, curvatureTension
-                Else
-                    GDI_Plus.GDIPlus_PathAddPolygonI m_PathHandle, ptrToPtLArray, numOfPoints
-                End If
-            Else
-                If useCurveAlgorithm Then
-                    GDI_Plus.GDIPlus_PathAddCurveI m_PathHandle, ptrToPtLArray, numOfPoints, curvatureTension
-                Else
-                    GDI_Plus.GDIPlus_PathAddLinesI m_PathHandle, ptrToPtLArray, numOfPoints
-                End If
-            End If
-            
-    End Select
+    If (Not AddPolygonInt) Then InternalError "AddPolygonInt", "GDI+ failure"
     
-End Sub
+End Function
 
 'Technically this should be called "AddPolygon_RegularConvex", but for brevity, we use just "regular".  Regular polygons
 ' (https://en.wikipedia.org/wiki/Regular_polygon) are the ones you learned in grade school: square, pentagon, hexagon, etc.
 ' Regular polygons are defined by a center point, radius, and number of sides.  This function also supports curvature.
-Friend Sub AddPolygon_Regular(ByVal numOfSides As Long, ByVal pRadius As Single, Optional ByVal centerX As Single = 0#, Optional ByVal centerY As Single = 0#, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curvatureTension As Single = 0.5)
+Friend Function AddPolygon_Regular(ByVal numOfSides As Long, ByVal pRadius As Single, Optional ByVal centerX As Single = 0#, Optional ByVal centerY As Single = 0#, Optional ByVal useCurveAlgorithm As Boolean = False, Optional ByVal curveTension As Single = 0.5!) As Boolean
     
     If (numOfSides > 0) Then
         
         If (m_PathHandle = 0) Then CreatePath
         
         'Regardless of backend, we start by establishing the polygon's points using basic geometry.
-        Dim polyPoints() As POINTFLOAT
-        ReDim polyPoints(0 To numOfSides - 1) As POINTFLOAT
+        Dim polyPoints() As PointFloat
+        ReDim polyPoints(0 To numOfSides - 1) As PointFloat
         
-        Dim i As Long
+        Dim i As Long, invNumSidesF As Single
+        invNumSidesF = 1! / numOfSides
         For i = 0 To numOfSides - 1
-            polyPoints(i).x = centerX + pRadius * Cos(PI_DOUBLE * CSng(i) / CSng(numOfSides))
-            polyPoints(i).y = centerY + pRadius * Sin(PI_DOUBLE * CSng(i) / CSng(numOfSides))
+            polyPoints(i).x = centerX + pRadius * Cos(PI_DOUBLE * CSng(i) * invNumSidesF)
+            polyPoints(i).y = centerY + pRadius * Sin(PI_DOUBLE * CSng(i) * invNumSidesF)
         Next i
         
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-        
-                'I don't know if there is a performance difference between adding closed curves with tension = 0 vs
-                ' adding plain polygons, but just in case there is, we split handling of these two types.
-                If useCurveAlgorithm Then
-                    GDI_Plus.GDIPlus_PathAddClosedCurve m_PathHandle, VarPtr(polyPoints(0)), numOfSides, curvatureTension
-                Else
-                    GDI_Plus.GDIPlus_PathAddPolygon m_PathHandle, VarPtr(polyPoints(0)), numOfSides
-                End If
-                
-        End Select
+        'I don't know if there is a performance difference between adding closed curves with tension = 0 vs
+        ' adding plain polygons, but just in case there is, we split handling of these two types.
+        If useCurveAlgorithm Then
+            AddPolygon_Regular = (GdipAddPathClosedCurve2(m_PathHandle, VarPtr(polyPoints(0)), numOfSides, curveTension) = GP_OK)
+        Else
+            AddPolygon_Regular = (GdipAddPathPolygon(m_PathHandle, VarPtr(polyPoints(0)), numOfSides) = GP_OK)
+        End If
         
     End If
     
-End Sub
+    If (Not AddPolygon_Regular) Then InternalError "AddPolygon_Regular", "GDI+ failure"
+    
+End Function
 
-Friend Sub AddRectangle_Absolute(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single)
+Friend Function AddRectangle_Absolute(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddRectangle m_PathHandle, x1, y1, x2 - x1, y2 - y1
-    End Select
-End Sub
+    AddRectangle_Absolute = (GdipAddPathRectangle(m_PathHandle, x1, y1, x2 - x1, y2 - y1) = GP_OK)
+    If (Not AddRectangle_Absolute) Then InternalError "AddRectangle_Absolute", "GDI+ failure"
+End Function
 
-Friend Sub AddRectangle_AbsoluteI(ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long)
+Friend Function AddRectangle_AbsoluteI(ByVal x1 As Long, ByVal y1 As Long, ByVal x2 As Long, ByVal y2 As Long) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddRectangleI m_PathHandle, x1, y1, x2 - x1, y2 - y1
-    End Select
-End Sub
+    AddRectangle_AbsoluteI = (GdipAddPathRectangleI(m_PathHandle, x1, y1, x2 - x1, y2 - y1) = GP_OK)
+    If (Not AddRectangle_AbsoluteI) Then InternalError "AddRectangle_AbsoluteI", "GDI+ failure"
+End Function
 
-Friend Sub AddRectangle_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single)
+Friend Function AddRectangle_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddRectangle m_PathHandle, x1, y1, rectWidth, rectHeight
-    End Select
-End Sub
+    AddRectangle_Relative = (GdipAddPathRectangle(m_PathHandle, x1, y1, rectWidth, rectHeight) = GP_OK)
+    If (Not AddRectangle_Relative) Then InternalError "AddRectangle_Relative", "GDI+ failure"
+End Function
 
-Friend Sub AddRectangle_RectF(ByRef srcRect As RECTF)
+Friend Function AddRectangle_RectF(ByRef srcRect As RectF) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            With srcRect
-                GDI_Plus.GDIPlus_PathAddRectangle m_PathHandle, .Left, .Top, .Width, .Height
-            End With
-    End Select
-End Sub
+    AddRectangle_RectF = (GdipAddPathRectangle(m_PathHandle, srcRect.Left, srcRect.Top, srcRect.Width, srcRect.Height) = GP_OK)
+    If (Not AddRectangle_RectF) Then InternalError "AddRectangle_RectF", "GDI+ failure"
+End Function
 
-Friend Sub AddRoundedRectangle_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single, ByVal cornerRadius As Single)
+Friend Function AddRoundedRectangle_RectF(ByRef srcRect As RectF, ByVal cornerRadius As Single) As Boolean
+    
+    If (m_PathHandle = 0) Then CreatePath
+    
+    'Validate the radius twice before applying it.  The width and height curvature cannot be less than
+    ' 1/2 the width (or height) of the rect.
+    Dim xCurvature As Single, yCurvature As Single
+    xCurvature = cornerRadius
+    yCurvature = cornerRadius
+    
+    If (xCurvature > srcRect.Width) Then xCurvature = srcRect.Width
+    If (yCurvature > srcRect.Height) Then yCurvature = srcRect.Height
+    
+    'Add four arcs, which are auto-connected by the path engine, then close the figure
+    AddRoundedRectangle_RectF = (GdipAddPathArc(m_PathHandle, srcRect.Left + srcRect.Width - xCurvature, srcRect.Top, xCurvature, yCurvature, 270!, 90!) = GP_OK)
+    AddRoundedRectangle_RectF = AddRoundedRectangle_RectF And (GdipAddPathArc(m_PathHandle, srcRect.Left + srcRect.Width - xCurvature, srcRect.Top + srcRect.Height - yCurvature, xCurvature, yCurvature, 0!, 90!) = GP_OK)
+    AddRoundedRectangle_RectF = AddRoundedRectangle_RectF And (GdipAddPathArc(m_PathHandle, srcRect.Left, srcRect.Top + srcRect.Height - yCurvature, xCurvature, yCurvature, 90!, 90!) = GP_OK)
+    AddRoundedRectangle_RectF = AddRoundedRectangle_RectF And (GdipAddPathArc(m_PathHandle, srcRect.Left, srcRect.Top, xCurvature, yCurvature, 180!, 90!) = GP_OK)
+    AddRoundedRectangle_RectF = AddRoundedRectangle_RectF And (GdipClosePathFigure(m_PathHandle) = GP_OK)
+    
+    If (Not AddRoundedRectangle_RectF) Then InternalError "AddRoundedRectangle_RectF", "GDI+ failure"
+    
+End Function
+
+Friend Function AddRoundedRectangle_Relative(ByVal x1 As Single, ByVal y1 As Single, ByVal rectWidth As Single, ByVal rectHeight As Single, ByVal cornerRadius As Single) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     
@@ -350,34 +370,36 @@ Friend Sub AddRoundedRectangle_Relative(ByVal x1 As Single, ByVal y1 As Single, 
     If (yCurvature > rectHeight) Then yCurvature = rectHeight
     
     'Add four arcs, which are auto-connected by the path engine, then close the figure
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddArc m_PathHandle, x1 + rectWidth - xCurvature, y1, xCurvature, yCurvature, 270, 90
-            GDI_Plus.GDIPlus_PathAddArc m_PathHandle, x1 + rectWidth - xCurvature, y1 + rectHeight - yCurvature, xCurvature, yCurvature, 0, 90
-            GDI_Plus.GDIPlus_PathAddArc m_PathHandle, x1, y1 + rectHeight - yCurvature, xCurvature, yCurvature, 90, 90
-            GDI_Plus.GDIPlus_PathAddArc m_PathHandle, x1, y1, xCurvature, yCurvature, 180, 90
-            GDI_Plus.GDIPlus_PathCloseFigure m_PathHandle
-            
-    End Select
+    AddRoundedRectangle_Relative = (GdipAddPathArc(m_PathHandle, x1 + rectWidth - xCurvature, y1, xCurvature, yCurvature, 270!, 90!) = GP_OK)
+    AddRoundedRectangle_Relative = AddRoundedRectangle_Relative And (GdipAddPathArc(m_PathHandle, x1 + rectWidth - xCurvature, y1 + rectHeight - yCurvature, xCurvature, yCurvature, 0!, 90!) = GP_OK)
+    AddRoundedRectangle_Relative = AddRoundedRectangle_Relative And (GdipAddPathArc(m_PathHandle, x1, y1 + rectHeight - yCurvature, xCurvature, yCurvature, 90!, 90!) = GP_OK)
+    AddRoundedRectangle_Relative = AddRoundedRectangle_Relative And (GdipAddPathArc(m_PathHandle, x1, y1, xCurvature, yCurvature, 180!, 90!) = GP_OK)
+    AddRoundedRectangle_Relative = AddRoundedRectangle_Relative And (GdipClosePathFigure(m_PathHandle) = GP_OK)
     
-End Sub
+    If (Not AddRoundedRectangle_Relative) Then InternalError "AddRoundedRectangle_Relative", "GDI+ failure"
+    
+End Function
 
-Friend Sub AddBezierCurve(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single, ByVal x3 As Single, ByVal y3 As Single, ByVal x4 As Single, ByVal y4 As Single)
+Friend Function AddBezierCurve(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single, ByVal x3 As Single, ByVal y3 As Single, ByVal x4 As Single, ByVal y4 As Single) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathAddBezier m_PathHandle, x1, y1, x2, y2, x3, y3, x4, y4
-    End Select
-End Sub
+    AddBezierCurve = (GdipAddPathBezier(m_PathHandle, x1, y1, x2, y2, x3, y3, x4, y4) = GP_OK)
+    If (Not AddBezierCurve) Then InternalError "AddBezierCurve", "GDI+ failure"
+End Function
+
+Friend Function AddBezierCurveList(ByVal ptrToPointFs As Long, ByVal numPoints As Long) As Boolean
+    If (m_PathHandle = 0) Then CreatePath
+    AddBezierCurveList = (GdipAddPathBeziers(m_PathHandle, ptrToPointFs, numPoints) = GP_OK)
+    If (Not AddBezierCurveList) Then InternalError "AddBezierCurveList", "GDI+ failure"
+End Function
 
 'Convenience wrapper for triangles
-Friend Sub AddTriangle(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single, ByVal x3 As Single, ByVal y3 As Single)
+Friend Function AddTriangle(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Single, ByVal y2 As Single, ByVal x3 As Single, ByVal y3 As Single) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     
     'Convert the incoming points to a float array and use the generic polygon wrapper to add 'em
-    Dim tmpPoints() As POINTFLOAT
-    ReDim tmpPoints(0 To 2) As POINTFLOAT
+    Dim tmpPoints() As PointFloat
+    ReDim tmpPoints(0 To 2) As PointFloat
     
     tmpPoints(0).x = x1
     tmpPoints(0).y = y1
@@ -386,23 +408,21 @@ Friend Sub AddTriangle(ByVal x1 As Single, ByVal y1 As Single, ByVal x2 As Singl
     tmpPoints(2).x = x3
     tmpPoints(2).y = y3
     
-    Me.AddPolygon 3, VarPtr(tmpPoints(0)), True, False
+    AddTriangle = Me.AddPolygon(3, VarPtr(tmpPoints(0)), True, False)
     
-End Sub
+End Function
 
-Friend Sub AddPath(ByRef srcGraphicsPath As pd2DPath, Optional ByVal offsetX As Single = 0, Optional ByVal offsetY As Single = 0, Optional ByVal connectToLastPointOfThisPath As Boolean = False)
+Friend Function AddPath(ByRef srcGraphicsPath As pd2DPath, Optional ByVal offsetX As Single = 0!, Optional ByVal offsetY As Single = 0!, Optional ByVal connectToLastPointOfThisPath As Boolean = False) As Boolean
     
-    If (m_PathHandle = 0) Then CreatePath
-    
-    'Make sure the glyph exists
+    'Make sure the source glyph exists
     If (Not srcGraphicsPath Is Nothing) Then
         
+        'Create a null path
+        If (m_PathHandle = 0) Then CreatePath
+        
         'If no offsets are specified, copy the path as-is
-        If (offsetX = 0) And (offsetY = 0) Then
-            Select Case m_PathBackend
-                Case P2_DefaultBackend, P2_GDIPlusBackend
-                    GDI_Plus.GDIPlus_PathAddPath m_PathHandle, srcGraphicsPath.GetHandle, IIf(connectToLastPointOfThisPath, 1&, 0&)
-            End Select
+        If (offsetX = 0!) And (offsetY = 0!) Then
+            AddPath = (GdipAddPathPath(m_PathHandle, srcGraphicsPath.GetHandle, IIf(connectToLastPointOfThisPath, 1&, 0&)) = GP_OK)
             
         'If offsets were specified, we need to clone the path, translate it, then add it
         Else
@@ -416,47 +436,41 @@ Friend Sub AddPath(ByRef srcGraphicsPath As pd2DPath, Optional ByVal offsetX As 
             tmpPath.TranslatePath offsetX, offsetY
             
             'Add it
-            Select Case m_PathBackend
-                Case P2_DefaultBackend, P2_GDIPlusBackend
-                    GDI_Plus.GDIPlus_PathAddPath m_PathHandle, tmpPath.GetHandle, IIf(connectToLastPointOfThisPath, 1&, 0&)
-            End Select
+            AddPath = (GdipAddPathPath(m_PathHandle, tmpPath.GetHandle, IIf(connectToLastPointOfThisPath, 1&, 0&)) = GP_OK)
             
         End If
         
+        If (Not AddPath) Then InternalError "AddPath", "GDI+ failure"
+        
     Else
-        InternalError "Empty source path", "WARNING!  pd2DPath.AddPath was handed a non-existent path."
-        Exit Sub
+        InternalError "AddPath", "null source"
     End If
     
-End Sub
+End Function
 
-Friend Sub StartNewFigure()
+Friend Function StartNewFigure() As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathStartFigure m_PathHandle
-    End Select
-End Sub
+    StartNewFigure = (GdipStartPathFigure(m_PathHandle) = GP_OK)
+    If (Not StartNewFigure) Then InternalError "StartNewFigure", "GDI+ failure"
+End Function
 
-Friend Sub CloseCurrentFigure()
+Friend Function CloseCurrentFigure() As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathCloseFigure m_PathHandle
-    End Select
-End Sub
+    CloseCurrentFigure = (GdipClosePathFigure(m_PathHandle) = GP_OK)
+    If (Not CloseCurrentFigure) Then InternalError "CloseCurrentFigure", "GDI+ failure"
+End Function
 
-'This is a little silly, but this function creates a squiggly line inside the target rectangle.  It provides a nice shorthand
-' method for previewing something like a pen against an arbitrary path.
-Friend Sub CreateSamplePathForRect(ByRef srcRect As RECTF, Optional ByVal hPadding As Single = 0, Optional ByVal vPadding As Single = 0)
+'This is a little silly, but this function creates a squiggly line inside the target rectangle.
+' It provides a nice shorthand method for previewing something like a pen against an arbitrary path.
+Friend Function CreateSamplePathForRect(ByRef srcRect As RectF, Optional ByVal hPadding As Single = 0!, Optional ByVal vPadding As Single = 0!) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     
     'A sample path is just a nice little curve that demonstrates a few obvious path elements for the user
-    Dim samplePoints() As POINTFLOAT
-    ReDim samplePoints(0 To 8) As POINTFLOAT
+    Dim samplePoints() As PointFloat
+    ReDim samplePoints(0 To 8) As PointFloat
     
-    Dim sampleRect As RECTF
+    Dim sampleRect As RectF
     With sampleRect
         .Left = srcRect.Left + hPadding
         .Top = srcRect.Top + vPadding
@@ -491,47 +505,47 @@ Friend Sub CreateSamplePathForRect(ByRef srcRect As RECTF, Optional ByVal hPaddi
     End With
     
     'Add the final positions to the path!
-    Me.AddPolygon 9, VarPtr(samplePoints(0)), False, True, 0.5
+    CreateSamplePathForRect = Me.AddPolygon(9, VarPtr(samplePoints(0)), False, True, 0.5!)
 
-End Sub
+End Function
 
 'Get/Set the path's current fill rule.  (Setting a new fill rule is non-destructive, FYI.)
 Friend Function GetFillRule() As PD_2D_FillRule
     If (m_PathHandle = 0) Then
         GetFillRule = DEFAULT_FILL_RULE
     Else
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                GetFillRule = GDI_Plus.GDIPlus_PathGetFillRule(m_PathHandle)
-        End Select
+        If (Not GdipGetPathFillMode(m_PathHandle, GetFillRule)) Then InternalError "GetFillRule", "GDI+ failure"
     End If
 End Function
 
-Friend Sub SetFillRule(ByVal newRule As PD_2D_FillRule)
+Friend Function SetFillRule(ByVal newRule As PD_2D_FillRule) As Boolean
     If (m_PathHandle = 0) Then CreatePath
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            GDI_Plus.GDIPlus_PathSetFillRule m_PathHandle, newRule
-    End Select
-End Sub
+    SetFillRule = (GdipSetPathFillMode(m_PathHandle, newRule) = GP_OK)
+    If (Not SetFillRule) Then InternalError "SetFillRule", "GDI+ failure"
+End Function
+
+'Flatten the current path (e.g. reduce all arcs, curves, circles, etc to line approximations)
+Friend Function FlattenPath(Optional ByVal allowableError As Single = DEFAULT_APPROXIMATION_ERROR) As Boolean
+    If (m_PathHandle <> 0) Then
+        FlattenPath = (GdipFlattenPath(m_PathHandle, 0&, allowableError) = GP_OK)
+        If (Not FlattenPath) Then InternalError "FlattenPath", "GDI+ failure"
+    Else
+        InternalError "FlattenPath", "null path"
+    End If
+End Function
 
 'Translate the entire path by some amount in the x and/or y positions
 Friend Function TranslatePath(ByVal xAmount As Single, ByVal yAmount As Single) As Boolean
-    
     If (m_PathHandle = 0) Then CreatePath
     ResetInternalTransform
     m_Transform.ApplyTranslation xAmount, yAmount
-    
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            TranslatePath = GDI_Plus.GDIPlus_PathTransform(m_PathHandle, m_Transform.GetHandle)
-    End Select
-    
+    TranslatePath = (GdipTransformPath(m_PathHandle, m_Transform.GetHandle) = GP_OK)
+    If (Not TranslatePath) Then InternalError "TranslatePath", "GDI+ failure"
 End Function
 
 'Translate the entire path by some amount in polar coordinates (angle + radius).  Radius is in degrees.
 Friend Function TranslatePath_Polar(ByVal translateAngle As Single, ByVal translateRadius As Single, Optional ByVal angleIsInDegrees As Boolean = True) As Boolean
-    If angleIsInDegrees Then translateAngle = DrawingMath.DegreesToRadians(translateAngle)
+    If angleIsInDegrees Then translateAngle = PD2D_Math.DegreesToRadians(translateAngle)
     TranslatePath_Polar = Me.TranslatePath(translateRadius * Cos(translateAngle), translateRadius * Sin(translateAngle))
 End Function
 
@@ -539,33 +553,29 @@ End Function
 Friend Function ApplyTransformation(ByRef srcTransform As pd2DTransform) As Boolean
     If (Not srcTransform Is Nothing) Then
         If (m_PathHandle = 0) Then CreatePath
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                ApplyTransformation = GDI_Plus.GDIPlus_PathTransform(m_PathHandle, srcTransform.GetHandle)
-        End Select
+        ApplyTransformation = (GdipTransformPath(m_PathHandle, srcTransform.GetHandle) = GP_OK)
+        If (Not ApplyTransformation) Then InternalError "ApplyTransformation", "GDI+ failure"
     Else
-        InternalError "Source transformation is empty", "ApplyTransformation requires a valid source transformation object!"
+        InternalError "ApplyTransformation", "null transform"
     End If
 End Function
 
 'Rotate the path around its center point.  The center point is calculated automatically.
-Friend Function RotatePathAroundItsCenter(ByRef rotateAngle As Single) As Boolean
+Friend Function RotatePathAroundItsCenter(ByVal rotateAngle As Single) As Boolean
     
     If (m_PathHandle = 0) Then CreatePath
     ResetInternalTransform
     
     'Figure out the path's center
-    Dim pathRect As RECTF
+    Dim pathRect As RectF
     pathRect = Me.GetPathBoundariesF()
     
     'Update the transformation matrix with a matching rotation
     m_Transform.ApplyRotation rotateAngle, pathRect.Left + pathRect.Width / 2, pathRect.Top + pathRect.Height / 2, P2_TO_Append
     
     'Apply the transformation
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            RotatePathAroundItsCenter = GDI_Plus.GDIPlus_PathTransform(m_PathHandle, m_Transform.GetHandle)
-    End Select
+    RotatePathAroundItsCenter = (GdipTransformPath(m_PathHandle, m_Transform.GetHandle) = GP_OK)
+    If (Not RotatePathAroundItsCenter) Then InternalError "RotatePathAroundItsCenter ", "GDI+ failure"
     
 End Function
 
@@ -576,7 +586,7 @@ Friend Function MirrorPathAroundItsCenter(ByVal mirrorHorizontal As Boolean, ByV
     ResetInternalTransform
     
     'Figure out the path's center
-    Dim pathRect As RECTF
+    Dim pathRect As RectF
     pathRect = Me.GetPathBoundariesF()
     
     'Update the transformation matrix with a matching mirror operation
@@ -587,10 +597,8 @@ Friend Function MirrorPathAroundItsCenter(ByVal mirrorHorizontal As Boolean, ByV
     If mirrorVertical Then m_Transform.ApplyTranslation 0, (pathRect.Top + pathRect.Height / 2) * 2, P2_TO_Append
     
     'Apply the transformation
-    Select Case m_PathBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            MirrorPathAroundItsCenter = GDI_Plus.GDIPlus_PathTransform(m_PathHandle, m_Transform.GetHandle)
-    End Select
+    MirrorPathAroundItsCenter = (GdipTransformPath(m_PathHandle, m_Transform.GetHandle) = GP_OK)
+    If (Not MirrorPathAroundItsCenter) Then InternalError "MirrorPathAroundItsCenter ", "GDI+ failure"
     
 End Function
 
@@ -601,12 +609,10 @@ End Function
 ' (e.g. converted to a series of straight lines that approximate the original curve).
 Friend Function ConvertPath_OutlineOnly(Optional ByVal allowableError As Single = DEFAULT_APPROXIMATION_ERROR) As Boolean
     If (m_PathHandle <> 0) Then
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                ConvertPath_OutlineOnly = GDI_Plus.GDIPlus_PathWindingModeOutline(m_PathHandle, 0&, allowableError)
-        End Select
+        ConvertPath_OutlineOnly = (GdipWindingModeOutline(m_PathHandle, 0&, allowableError) = GP_OK)
+        If (Not ConvertPath_OutlineOnly) Then InternalError "ConvertPath_OutlineOnly", "GDI+ failure"
     Else
-        InternalError "Path doesn't exist", "You can't convert an empty path!"
+        InternalError "ConvertPath_OutlineOnly", "null hPath"
     End If
 End Function
 
@@ -621,15 +627,13 @@ Friend Function ConvertPath_PenTrace(ByRef srcPen As pd2DPen, Optional ByVal all
     
     If (m_PathHandle <> 0) Then
         If (Not srcPen Is Nothing) Then
-            Select Case m_PathBackend
-                Case P2_DefaultBackend, P2_GDIPlusBackend
-                    ConvertPath_PenTrace = GDI_Plus.GDIPlus_PathWiden(m_PathHandle, srcPen.GetHandle, 0&, allowableError)
-            End Select
+            ConvertPath_PenTrace = (GdipWidenPath(m_PathHandle, srcPen.GetHandle, 0&, allowableError) = GP_OK)
+            If (Not ConvertPath_PenTrace) Then InternalError "ConvertPath_PenTrace", "GDI+ failure"
         Else
             ConvertPath_PenTrace = False
         End If
     Else
-        InternalError "Path doesn't exist", "You can't convert an empty path!"
+        InternalError "ConvertPath_PenTrace", "null hPath"
     End If
     
 End Function
@@ -642,46 +646,56 @@ End Function
 Friend Function ConvertPath_InflateLikeBalloon(ByVal inflateWidth As Single, Optional ByVal useLineJoin As PD_2D_LineJoin = P2_LJ_Round, Optional ByVal useLineCap As PD_2D_LineCap = P2_LC_Round, Optional ByVal allowableError As Single = DEFAULT_APPROXIMATION_ERROR) As Boolean
     
     If (m_PathHandle <> 0) Then
-    
+        
+        Dim gpResult As GP_Result
+        
         'Widening a path requires a GDI+ pen.  All of the pen's properties (width, dashing, transforms, miters, etc)
         ' are considered when applying the widening transform.
         Dim cPen As pd2DPen
-        Drawing2D.QuickCreateSolidPen cPen, inflateWidth, , , useLineJoin, useLineCap
+        Set cPen = New pd2DPen
+        cPen.SetPenWidth inflateWidth
+        cPen.SetPenLineJoin useLineJoin
+        cPen.SetPenLineCap useLineCap
         
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                
-                'Because GDI+ widening transforms are prone to failure, make a backup of the current path (as we may need to restore it).
-                Dim pathBackup As Long
-                pathBackup = GDI_Plus.GDIPlus_PathClone(m_PathHandle)
-                    
-                'Apply the widen command
-                If GDI_Plus.GDIPlus_PathWiden(m_PathHandle, cPen.GetHandle, 0&, allowableError) Then
-                    
-                    'Re-clone the path in its current state
-                    GDI_Plus.GDIPlus_PathDelete pathBackup
-                    pathBackup = GDI_Plus.GDIPlus_PathClone(m_PathHandle)
-                    
-                    'Convert the path to an outline-only representation
-                    If GDI_Plus.GDIPlus_PathWindingModeOutline(m_PathHandle, 0, allowableError) Then
-                        ConvertPath_InflateLikeBalloon = True
-                    Else
-                        m_PathHandle = GDI_Plus.GDIPlus_PathClone(pathBackup)
-                        ConvertPath_InflateLikeBalloon = False
-                    End If
-                    
-                    GDI_Plus.GDIPlus_PathDelete pathBackup
-                    
-                Else
-                    m_PathHandle = GDI_Plus.GDIPlus_PathClone(pathBackup)
-                    GDI_Plus.GDIPlus_PathDelete pathBackup
-                    ConvertPath_InflateLikeBalloon = False
-                End If
+        'Because GDI+ widening transforms are prone to failure, make a backup of the current path (as we may need to restore it).
+        Dim pathBackup As Long
+        gpResult = GdipClonePath(m_PathHandle, pathBackup)
+        If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipClonePath", gpResult
         
-        End Select
+        'Apply the widen command
+        gpResult = GdipWidenPath(m_PathHandle, cPen.GetHandle, 0&, allowableError)
+        If (gpResult = GP_OK) Then
+            
+            'Re-clone the path in its current state
+            gpResult = GdipDeletePath(pathBackup)
+            If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipDeletePath", gpResult
+            gpResult = GdipClonePath(m_PathHandle, pathBackup)
+            If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipClonePath", gpResult
+            
+            'Convert the path to an outline-only representation, and if that fails, restore the original path
+            gpResult = GdipWindingModeOutline(m_PathHandle, 0, allowableError)
+            ConvertPath_InflateLikeBalloon = (gpResult = GP_OK)
+            If (Not ConvertPath_InflateLikeBalloon) Then
+                InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipWindingModeOutline", gpResult
+                gpResult = GdipClonePath(pathBackup, m_PathHandle)
+                If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipClonePath", gpResult
+            End If
+            
+            'Delete the backup path before exiting
+            gpResult = GdipDeletePath(pathBackup)
+            If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipDeletePath", gpResult
+            
+        Else
+            InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipWidenPath", gpResult
+            gpResult = GdipClonePath(pathBackup, m_PathHandle)
+            If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipClonePath", gpResult
+            gpResult = GdipDeletePath(pathBackup)
+            If (gpResult <> GP_OK) Then InternalError "ConvertPath_InflateLikeBalloon", "GDI+ failure: GdipDeletePath", gpResult
+            ConvertPath_InflateLikeBalloon = False
+        End If
         
     Else
-        InternalError "Path doesn't exist", "You can't convert an empty path!"
+        InternalError "ConvertPath_InflateLikeBalloon", "null path"
     End If
     
 End Function
@@ -691,16 +705,16 @@ Friend Function CloneExistingPath(ByRef srcPath As pd2DPath) As Boolean
     If (Not srcPath Is Nothing) Then
         
         If (m_PathHandle <> 0) Then Me.ReleasePath
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                m_PathHandle = GDI_Plus.GDIPlus_PathClone(srcPath.GetHandle)
-                CloneExistingPath = CBool(m_PathHandle <> 0)
-        End Select
-        
-        If (CloneExistingPath And m_DebugMode) Then Drawing2D.DEBUG_NotifyPathCountChange m_PathBackend, True
+        CloneExistingPath = (GdipClonePath(srcPath.GetHandle, m_PathHandle) = GP_OK)
+        CloneExistingPath = CloneExistingPath And (m_PathHandle <> 0)
+        If CloneExistingPath Then
+            If PD2D_DEBUG_MODE Then PD2D.DEBUG_NotifyPathCountChange True
+        Else
+            InternalError "CloneExistingPath", "GDI+ failure"
+        End If
     
     Else
-        InternalError "Null source path", "WARNING!  pd2DPath.CloneExistingPath was passed a non-existent path."
+        InternalError "CloneExistingPath", "null source path"
         CloneExistingPath = False
     End If
     
@@ -708,98 +722,133 @@ End Function
 
 Friend Function DoesPointTouchPathOutlineF(ByVal x As Single, ByVal y As Single, ByRef srcPen As pd2DPen) As Boolean
     
-    If (m_PathHandle <> 0) Then
-        If (Not srcPen Is Nothing) Then
-            Select Case m_PathBackend
-                Case P2_DefaultBackend, P2_GDIPlusBackend
-                    DoesPointTouchPathOutlineF = GDI_Plus.GDIPlus_PathDoesPointTouchOutlineF(m_PathHandle, x, y, srcPen.GetHandle)
-            End Select
+    If (m_PathHandle <> 0) And (Not srcPen Is Nothing) Then
+        Dim tmpResult As GP_Result, tmpLong As Long
+        tmpResult = GdipIsOutlineVisiblePathPoint(m_PathHandle, x, y, srcPen.GetHandle, 0&, tmpLong)
+        If (tmpResult = GP_OK) Then
+            DoesPointTouchPathOutlineF = (tmpLong <> 0)
         Else
-            InternalError "Pen doesn't exist", "DoesPointTouchPathOutlineF is meaningless if you don't supply a pen!"
+            InternalError "DoesPointTouchPathOutlineF", "GDI+ failure", tmpResult
         End If
     Else
-        InternalError "Path doesn't exist", "DoesPointTouchPathOutlineF is meaningless on an empty path!"
+        InternalError "DoesPointTouchPathOutlineF", "null hPath or hPen"
     End If
     
 End Function
 
 Friend Function DoesPointTouchPathOutlineL(ByVal x As Long, ByVal y As Long, ByRef srcPen As pd2DPen) As Boolean
     
-    If (m_PathHandle <> 0) Then
-        If (Not srcPen Is Nothing) Then
-            Select Case m_PathBackend
-                Case P2_DefaultBackend, P2_GDIPlusBackend
-                    DoesPointTouchPathOutlineL = GDI_Plus.GDIPlus_PathDoesPointTouchOutlineL(m_PathHandle, x, y, srcPen.GetHandle)
-            End Select
+    If (m_PathHandle <> 0) And (Not srcPen Is Nothing) Then
+        Dim tmpResult As GP_Result, tmpLong As Long
+        tmpResult = GdipIsOutlineVisiblePathPointI(m_PathHandle, x, y, srcPen.GetHandle, 0&, tmpLong)
+        If (tmpResult = GP_OK) Then
+            DoesPointTouchPathOutlineL = (tmpLong <> 0)
         Else
-            InternalError "Pen doesn't exist", "DoesPointTouchPathOutlineF is meaningless if you don't supply a pen!"
+            InternalError "DoesPointTouchPathOutlineL", "GDI+ failure", tmpResult
         End If
     Else
-        InternalError "Path doesn't exist", "DoesPointTouchPathOutlineL is meaningless on an empty path!"
+        InternalError "DoesPointTouchPathOutlineL", "null hPath or hPen"
     End If
     
+End Function
+
+Friend Function GetNumPathPoints() As Long
+    If (m_PathHandle <> 0) Then
+        If (GdipGetPointCount(m_PathHandle, GetNumPathPoints) <> GP_OK) Then InternalError "GetNumPathPoints", "GDI+ failure"
+    End If
 End Function
 
 'Retrieve this path's boundaries.  Optionally, you can also receive the path's boundaries as if they were drawn with
 ' a particular pen.  (All pen settings are considered, including tricky things like corner mitering.)
-Friend Function GetPathBoundariesF(Optional ByRef testPen As pd2DPen = Nothing, Optional ByVal testTransform As pd2DTransform = Nothing) As RECTF
+Friend Function GetPathBoundariesF(Optional ByRef testPen As pd2DPen = Nothing, Optional ByVal testTransform As pd2DTransform = Nothing) As RectF
     
     If (m_PathHandle <> 0) Then
     
-        Dim penHandle As Long, transformHandle As Long
-        If (Not testPen Is Nothing) Then penHandle = testPen.GetHandle Else penHandle = 0
-        If (Not testTransform Is Nothing) Then transformHandle = testTransform.GetHandle Else transformHandle = 0
+        Dim hPen As Long, hTransform As Long
+        If (Not testPen Is Nothing) Then hPen = testPen.GetHandle Else hPen = 0
+        If (Not testTransform Is Nothing) Then
+            hTransform = testTransform.GetHandle
+        Else
+            
+            'If the caller specified a pen but *not* a transform, we need to create a temporary transform for them.
+            If (hPen <> 0) Then
+                Dim tmpTransform As pd2DTransform
+                Set tmpTransform = New pd2DTransform
+                tmpTransform.Reset
+                hTransform = tmpTransform.GetHandle
+            Else
+                hTransform = 0
+            End If
+            
+        End If
         
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                GetPathBoundariesF = GDI_Plus.GDIPlus_PathGetPathBoundsF(m_PathHandle, transformHandle, penHandle)
-        End Select
+        Dim tmpReturn As GP_Result
+        tmpReturn = GdipGetPathWorldBounds(m_PathHandle, GetPathBoundariesF, hTransform, hPen)
+        If (tmpReturn <> GP_OK) Then InternalError "GetPathBoundariesF", "GDI+ failure"
         
+    Else
+        InternalError "GetPathBoundariesF", "null hPath"
     End If
     
 End Function
 
-Friend Function GetPathBoundariesL(Optional ByRef testPen As pd2DPen = Nothing, Optional ByVal testTransform As pd2DTransform = Nothing) As RECTL
-        
+Friend Function GetPathBoundariesL(Optional ByRef testPen As pd2DPen = Nothing, Optional ByVal testTransform As pd2DTransform = Nothing) As RectL
+    
     If (m_PathHandle <> 0) Then
     
-        Dim penHandle As Long, transformHandle As Long
-        If (Not testPen Is Nothing) Then penHandle = testPen.GetHandle Else penHandle = 0
-        If (Not testTransform Is Nothing) Then transformHandle = testTransform.GetHandle Else transformHandle = 0
+        Dim hPen As Long, hTransform As Long
+        If (Not testPen Is Nothing) Then hPen = testPen.GetHandle Else hPen = 0
+        If (Not testTransform Is Nothing) Then
+            hTransform = testTransform.GetHandle
+        Else
+            
+            'If the caller specified a pen but *not* a transform, we need to create a temporary transform for them.
+            If (hPen <> 0) Then
+                Dim tmpTransform As pd2DTransform
+                Set tmpTransform = New pd2DTransform
+                tmpTransform.Reset
+                hTransform = tmpTransform.GetHandle
+            Else
+                hTransform = 0
+            End If
+            
+        End If
         
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                GetPathBoundariesL = GDI_Plus.GDIPlus_PathGetPathBoundsL(m_PathHandle, transformHandle, penHandle)
-        End Select
+        Dim tmpReturn As GP_Result
+        tmpReturn = GdipGetPathWorldBoundsI(m_PathHandle, GetPathBoundariesL, hTransform, hPen)
+        If (tmpReturn <> GP_OK) Then InternalError "GetPathBoundariesL", "GDI+ faulre"
         
+    Else
+        InternalError "GetPathBoundariesL", "null hPath"
     End If
-
 End Function
 
 Friend Function IsPointInsidePathF(ByVal x As Single, ByVal y As Single) As Boolean
-    
     If (m_PathHandle <> 0) Then
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                IsPointInsidePathF = GDI_Plus.GDIPlus_PathIsPointInsideF(m_PathHandle, x, y)
-        End Select
+        Dim tmpReturn As GP_Result, tmpResult As Long
+        tmpReturn = GdipIsVisiblePathPoint(m_PathHandle, x, y, 0&, tmpResult)
+        If (tmpReturn = GP_OK) Then
+            IsPointInsidePathF = (tmpResult <> 0)
+        Else
+            InternalError "IsPointInsidePathF", "GDI+ failure"
+        End If
     Else
-        InternalError "Path doesn't exist", "IsPointInsidePathF is meaningless on an empty path!"
+        InternalError "IsPointInsidePathF", "null hPath"
     End If
-    
 End Function
 
 Friend Function IsPointInsidePathL(ByVal x As Long, ByVal y As Long) As Boolean
-    
     If (m_PathHandle <> 0) Then
-        Select Case m_PathBackend
-            Case P2_DefaultBackend, P2_GDIPlusBackend
-                IsPointInsidePathL = GDI_Plus.GDIPlus_PathIsPointInsideL(m_PathHandle, x, y)
-        End Select
+        Dim tmpReturn As GP_Result, tmpResult As Long
+        tmpReturn = GdipIsVisiblePathPointI(m_PathHandle, x, y, 0&, tmpResult)
+        If (tmpReturn = GP_OK) Then
+            IsPointInsidePathL = (tmpResult <> 0)
+        Else
+            InternalError "IsPointInsidePathL", "GDI+ failure"
+        End If
     Else
-        InternalError "Path doesn't exist", "IsPointInsidePathL is meaningless on an empty path!"
+        InternalError "IsPointInsidePathL", "null hPath"
     End If
-    
 End Function
 
 'As a convenience, this class exposes some generic "transform" operations that don't require the user to supply their own
@@ -809,32 +858,19 @@ Private Sub ResetInternalTransform()
     m_Transform.Reset
 End Sub
 
-'You only need to manually initialize a backend if you plan on using a NON-DEFAULT backend.
-' (Objects with the default backend are initialized automatically.)
-Friend Function InitializePathBackend(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
-    m_PathBackend = targetBackend
-    InitializePathBackend = True
-End Function
-
-'When debug mode is active, this class will report object creation and destruction back to the master Drawing2D module.
-Friend Sub SetDebugMode(ByVal newMode As Boolean)
-    m_DebugMode = newMode
-End Sub
-
 Private Sub Class_Initialize()
     Me.ResetPath
-    m_DebugMode = Drawing2D.GetLibraryDebugMode()
 End Sub
 
 Private Sub Class_Terminate()
     Me.ReleasePath
 End Sub
 
-
-'All pd2D classes report errors using an internal function similar to this one.  Feel free to modify this function to
-' better fit your project (e.g. perhaps it could raise an actual error event).
+'All pd2D classes report errors using an internal function similar to this one.
+' Feel free to modify this function to better fit your project
+' (for example, maybe you prefer to raise an actual error event).
 '
-'Note that a default pd2D build simply dumps the passed error information to the Immediate window.
-Private Sub InternalError(Optional ByRef errName As String = vbNullString, Optional ByRef errDescription As String = vbNullString, Optional ByVal ErrNum As Long = 0)
-    Drawing2D.DEBUG_NotifyExternalError errName, errDescription, ErrNum, "pd2DPath"
+'Note that by default, pd2D build simply dumps all error information to the Immediate window.
+Private Sub InternalError(ByRef errFunction As String, ByRef errDescription As String, Optional ByVal errNum As Long = 0)
+    PD2D.DEBUG_NotifyError "pd2DPath", errFunction, errDescription, errNum
 End Sub

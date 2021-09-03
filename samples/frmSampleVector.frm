@@ -295,11 +295,11 @@ Attribute VB_Exposed = False
 '1) When your project starts, you must initialize a pd2D backend before doing any painting tasks.  This involves
 '   placing one line of code inside Form_Load or Sub Main():
 '
-'   Drawing2D.StartRenderingBackend P2_DefaultBackend
+'   PD2D.StartRenderingBackend P2_DefaultBackend
 '
 '2) When your project ends, you need to release the backend you started inside Form_Load or Sub Main(), e.g.:
 '
-'   Drawing2D.StopRenderingEngine P2_DefaultBackend
+'   PD2D.StopRenderingEngine P2_DefaultBackend
 '
 '3) pd2D is based on a simple drawing model: a PAINTER uses PENS and BRUSHES to draw on various SURFACES.
 '   For simplicity, this project declares a single painter instance at form-level.  The painter's name
@@ -326,7 +326,7 @@ Attribute VB_Exposed = False
 '
 '   - To show our painting results on-screen, I will periodically copy the contents of "m_BackBuffer" into a
 '   second surface, called "m_TargetPictureBox".  This surface is created by wrapping a pd2Dsurface object around
-'   the main form's black picture box, using the helpful Drawing2D.QuickCreateSurfaceFromDC() function.
+'   the main form's black picture box, using the helpful PD2D.QuickCreateSurfaceFromDC() function.
 '
 '5) When performing drawing tasks, you'll probably create lots of pens and brushes.  You never need to worry
 '   about destroying these resources.  pd2D takes care of this for you.  The same goes for in-memory surfaces,
@@ -338,7 +338,7 @@ Attribute VB_Exposed = False
 '   creating and destroying controls as run-time -- but please be aware of it!)
 '
 '6) To simplify the most common pd2D tasks, I've created a lot of helper functions inside the master Drawing2D
-'   module.  These functions are prefixed with "Quick", e.g. "Drawing2D.QuickCreateSolidPen", which lets you
+'   module.  These functions are prefixed with "Quick", e.g. "PD2D.QuickCreateSolidPen", which lets you
 '   create a solid-colored pen for painting in just one line of code.  You'll probably want to make use of these,
 '   as they can save you some trouble over manually instantiating pens and setting individual properties one line
 '   at a time.
@@ -356,11 +356,6 @@ Attribute VB_Exposed = False
 
 
 Option Explicit
-
-'This single painter object performs all the drawing you see in this sample project.  Most projects will only ever
-' need a single painter object.  (Creating new painters is basically instantaneous, so you could also create
-' painters on-demand, if you prefer that approach.)
-Private m_Painter As pd2DPainter
 
 'To prevent flickering, we're not going to draw directly onto the main form's picture box.  Instead, we're going to
 ' draw to an invisible "in-memory" surface.  After our drawing is complete, we'll copy the entire contents of the
@@ -401,21 +396,21 @@ Private m_WavePhase As Single, m_WaveAmplitude As Single, m_TargetAmplitude As S
 
 'For the compass demo, we use the API to grab the current position of the mouse cursor, in screen coordinates.
 ' We also use the API to correctly note the center of the sample picture box, in screen coordinates
-Private m_CompassCenterScreen As POINTLONG, m_CompassCenterClient As POINTFLOAT, m_CompassRadius As Single
+Private m_CompassCenterScreen As PointLong, m_CompassCenterClient As PointFloat, m_CompassRadius As Single
 Private m_CompassLinesThick As pd2DPath, m_CompassLinesThin As pd2DPath, m_CompassArrow As pd2DPath
-Private Declare Function GetCursorPos Lib "user32" (ByRef dstPointL As POINTLONG) As Long
-Private Declare Function ClientToScreen Lib "user32" (ByVal srcHWnd As Long, ByRef targetPoint As POINTLONG) As Long
+Private Declare Function GetCursorPos Lib "user32" (ByRef dstPointL As PointLong) As Long
+Private Declare Function ClientToScreen Lib "user32" (ByVal srcHwnd As Long, ByRef targetPoint As PointLong) As Long
 
 Private m_Test1UseLines As Boolean, m_Test1DontCloseShape As Boolean
 Private m_Test2UseCurvature As Boolean
 
 'pd2D supports subpixel positioning, which means that pixels no longer need to be defined as integers.
 ' The POINTFLOAT type is very simple: it simply includes an x and y coordinate, both defined as Singles.
-Private m_listOfPoints() As POINTFLOAT
+Private m_listOfPoints() As PointFloat
 
 Private Type AnimatedPolygon
     PolygonBorderWidth As Single
-    PolygonCenter As POINTFLOAT
+    PolygonCenter As PointFloat
     PolygonColorBorder As Long
     PolygonColorFill As Long
     PolygonCurvature As Single
@@ -435,23 +430,14 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    Drawing2D.StartRenderingEngine P2_DefaultBackend
+    PD2D.StartRenderingEngine P2_DefaultBackend
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
-    
-    'Next, we want the drawing library to relay any relevant debug information to the immediate window.
-    ' (You can set this value to whatever you want in your own projects; performance may see a tiny improvement if
-    '  debug mode is turned off.)
-    Drawing2D.SetLibraryDebugMode True
-    
-    'Next, we need a painter instance.  Most projects will only need one painter per project.  Just like real-life,
-    ' a painter can work with any number of different pens, brushes, and surfaces.
-    Drawing2D.QuickCreatePainter m_Painter
     
     'Next, let's create our in-memory surface, which I'm going to refer to as our "back buffer".  We will do all our
     ' painting on *this* surface.  (Note our use of the "Quick"-prefixed functions inside the Drawing2D module.
     ' These are a nice shorthand way to perform complicated instantiation tasks.)
-    Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
+    PD2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
     
     'When drawing onto an object, pd2D prefers pixel measurements.  I always recommend setting this at design-time,
     ' but just to be safe, but we can perform a failsafe check now.
@@ -484,7 +470,7 @@ Private Sub Form_Resize()
         picOutput.Move picOutput.Left, picOutput.Top, newOutputWidth, newOutputHeight
         
         'Because we use a back buffer for drawing, we also need to recreate it to match the new picture box size.
-        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
+        PD2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbBlack, 0
         
     End If
 
@@ -496,7 +482,6 @@ Private Sub Form_Unload(Cancel As Integer)
     tmrSample.Enabled = False
     
     'Before we shut down the rendering backend, we need to release any remaining pd2D objects.
-    Set m_Painter = Nothing
     Set m_BackBuffer = Nothing
     Set m_CompassLinesThick = Nothing
     Set m_CompassLinesThin = Nothing
@@ -506,7 +491,7 @@ Private Sub Form_Unload(Cancel As Integer)
     Erase m_ListOfPolygons
     
     'As the final step at shutdown time, release the rendering backend we started inside Form_Load
-    Drawing2D.StopRenderingEngine P2_DefaultBackend
+    PD2D.StopRenderingEngine P2_DefaultBackend
     
 End Sub
 
@@ -617,9 +602,9 @@ Private Sub Test3InitializeCompass()
     'The arrow image is easiest: just a small arrow, pointing at angle 0
     Dim arrowPoints() As Double
     ReDim arrowPoints(0 To 5) As Double
-    DrawingMath.ConvertPolarToCartesian 0#, m_CompassRadius - 1#, arrowPoints(0), arrowPoints(1), m_CompassCenterClient.x, m_CompassCenterClient.y, False
-    DrawingMath.ConvertPolarToCartesian -3#, m_CompassRadius - 12#, arrowPoints(2), arrowPoints(3), m_CompassCenterClient.x, m_CompassCenterClient.y, False
-    DrawingMath.ConvertPolarToCartesian 3#, m_CompassRadius - 12#, arrowPoints(4), arrowPoints(5), m_CompassCenterClient.x, m_CompassCenterClient.y, False
+    PD2D_Math.ConvertPolarToCartesian 0#, m_CompassRadius - 1#, arrowPoints(0), arrowPoints(1), m_CompassCenterClient.x, m_CompassCenterClient.y, False
+    PD2D_Math.ConvertPolarToCartesian -3#, m_CompassRadius - 12#, arrowPoints(2), arrowPoints(3), m_CompassCenterClient.x, m_CompassCenterClient.y, False
+    PD2D_Math.ConvertPolarToCartesian 3#, m_CompassRadius - 12#, arrowPoints(4), arrowPoints(5), m_CompassCenterClient.x, m_CompassCenterClient.y, False
     With m_CompassArrow
         .AddTriangle arrowPoints(0), arrowPoints(1), arrowPoints(2), arrowPoints(3), arrowPoints(4), arrowPoints(5)
     End With
@@ -638,8 +623,8 @@ Private Sub Test3InitializeCompass()
     
     Dim i As Long, j As Long
     For i = 0 To 359 Step 30
-        DrawingMath.ConvertPolarToCartesian i, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
-        DrawingMath.ConvertPolarToCartesian i, m_CompassRadius - lineLengthThick, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
+        PD2D_Math.ConvertPolarToCartesian i, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
+        PD2D_Math.ConvertPolarToCartesian i, m_CompassRadius - lineLengthThick, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
         
         'Normally, a path object auto-connects neighboring figures.  To prevent this, we clearly mark each line as an
         ' independent figure, which prevents the auto-connect behavior.
@@ -649,8 +634,8 @@ Private Sub Test3InitializeCompass()
         
         'While here, let's also fill-in the thin compass lines.  These are important for demonstrating the benefits of antialiasing.
         For j = i To i + 29 Step 3
-            DrawingMath.ConvertPolarToCartesian j, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
-            DrawingMath.ConvertPolarToCartesian j, m_CompassRadius - lineLengthThin, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
+            PD2D_Math.ConvertPolarToCartesian j, m_CompassRadius, lineX1, lineY1, m_CompassCenterClient.x, m_CompassCenterClient.y
+            PD2D_Math.ConvertPolarToCartesian j, m_CompassRadius - lineLengthThin, lineX2, lineY2, m_CompassCenterClient.x, m_CompassCenterClient.y
             m_CompassLinesThin.StartNewFigure
             m_CompassLinesThin.AddLine lineX1, lineY1, lineX2, lineY2
             m_CompassLinesThin.CloseCurrentFigure
@@ -720,7 +705,7 @@ Private Sub tmrSample_Timer()
             
             'Prepare a list of points.  These points will describe our waveform
             m_NumOfPoints = (picWidth + WAVE_DENSITY) / WAVE_DENSITY + 1
-            ReDim m_listOfPoints(0 To m_NumOfPoints) As POINTFLOAT
+            ReDim m_listOfPoints(0 To m_NumOfPoints) As PointFloat
             
             Dim curPoint As Long
             
@@ -796,13 +781,13 @@ Private Sub tmrSample_Timer()
                 ' function automatically connects the first and last points in the wave, which is how we form a solid shape from
                 ' an abstract set of points.
                 If (Not m_Test1DontCloseShape) Then
-                    Drawing2D.QuickCreateSolidBrush cBrush, penColor, drawOpacity * 50
-                    m_Painter.FillPolygonF_FromPtF m_BackBuffer, cBrush, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, , P2_FR_OddEven
+                    PD2D.QuickCreateSolidBrush cBrush, penColor, drawOpacity * 50
+                    PD2D.FillPolygonF_FromPtF m_BackBuffer, cBrush, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines, , P2_FR_OddEven
                 End If
                 
                 'And finally, trace the path outline using the pen color and width we calculated previously
-                Drawing2D.QuickCreateSolidPen cPen, penWidth, penColor, drawOpacity * 100, P2_LJ_Round, P2_LC_Round
-                m_Painter.DrawLinesF_FromPtF m_BackBuffer, cPen, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines
+                PD2D.QuickCreateSolidPen cPen, penWidth, penColor, drawOpacity * 100, P2_LJ_Round, P2_LC_Round
+                PD2D.DrawLinesF_FromPtF m_BackBuffer, cPen, curPoint, VarPtr(m_listOfPoints(0)), Not m_Test1UseLines
                 
             Next i
             
@@ -816,7 +801,7 @@ Private Sub tmrSample_Timer()
             
             'To move each polygon, we're going to use a "transform" object.  Transform objects "add together"
             ' transformations over time, which allows you to apply very complex motion with very little code.
-            Dim newCenter As POINTFLOAT, oldCenter As POINTFLOAT, collisionAngle As Double
+            Dim newCenter As PointFloat, oldCenter As PointFloat, collisionAngle As Double
         
             For i = 0 To m_NumOfPoints - 1
                 
@@ -842,7 +827,7 @@ Private Sub tmrSample_Timer()
                         Else
                             .PolygonDirection = .PolygonDirection - 90
                         End If
-                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        .PolygonDirection = PD2D_Math.Modulo(.PolygonDirection, 360#)
                     ElseIf (newCenter.y + .PolygonRadius > picHeight) Then
                         .PolygonTransform.ApplyTranslation 0#, picHeight - (newCenter.y + .PolygonRadius)
                         If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
@@ -850,7 +835,7 @@ Private Sub tmrSample_Timer()
                         Else
                             .PolygonDirection = .PolygonDirection + 90
                         End If
-                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        .PolygonDirection = PD2D_Math.Modulo(.PolygonDirection, 360#)
                     ElseIf (newCenter.x - .PolygonRadius < 0) Then
                         .PolygonTransform.ApplyTranslation -1 * newCenter.x + .PolygonRadius, 0#
                         If (.PolygonDirection > 180) Then
@@ -858,7 +843,7 @@ Private Sub tmrSample_Timer()
                         Else
                             .PolygonDirection = .PolygonDirection - 90
                         End If
-                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        .PolygonDirection = PD2D_Math.Modulo(.PolygonDirection, 360#)
                     ElseIf (newCenter.y - .PolygonRadius < 0) Then
                         .PolygonTransform.ApplyTranslation 0#, -1 * newCenter.y + .PolygonRadius
                         If (.PolygonDirection < 90) Or (.PolygonDirection > 270) Then
@@ -866,7 +851,7 @@ Private Sub tmrSample_Timer()
                         Else
                             .PolygonDirection = .PolygonDirection - 90
                         End If
-                        .PolygonDirection = DrawingMath.Modulo(.PolygonDirection, 360#)
+                        .PolygonDirection = PD2D_Math.Modulo(.PolygonDirection, 360#)
                     End If
                 End With
             Next i
@@ -883,13 +868,13 @@ Private Sub tmrSample_Timer()
         Case Test3_CompassDemo
         
             'Grab the current mouse cursor position, in screen coordinates
-            Dim mousePosition As POINTLONG
+            Dim mousePosition As PointLong
             GetCursorPos mousePosition
             
             'Calculate the angle between the mouse position and the center of the output picture box
             Dim compassAngle As Single
-            compassAngle = DrawingMath.Atan2(mousePosition.y - m_CompassCenterScreen.y, mousePosition.x - m_CompassCenterScreen.x)
-            compassAngle = DrawingMath.RadiansToDegrees(compassAngle)
+            compassAngle = PD2D_Math.Atan2(mousePosition.y - m_CompassCenterScreen.y, mousePosition.x - m_CompassCenterScreen.x)
+            compassAngle = PD2D_Math.RadiansToDegrees(compassAngle)
             
             'Create a transformation object that describes this angle
             Dim cTransform As pd2DTransform
@@ -900,15 +885,15 @@ Private Sub tmrSample_Timer()
             m_BackBuffer.EraseSurfaceContents 0, 0
             
             'Render the compass arrow, with this rotation applied
-            Drawing2D.QuickCreateSolidBrush cBrush, vbRed, 100#
-            m_Painter.FillPath_Transformed m_BackBuffer, cBrush, m_CompassArrow, cTransform
+            PD2D.QuickCreateSolidBrush cBrush, vbRed, 100#
+            PD2D.FillPath_Transformed m_BackBuffer, cBrush, m_CompassArrow, cTransform
             
             'Render the compass lines, also with this rotation applied
-            Drawing2D.QuickCreateSolidPen cPen, 2.5, vbWhite
-            m_Painter.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThick, cTransform
+            PD2D.QuickCreateSolidPen cPen, 2.5, vbWhite
+            PD2D.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThick, cTransform
             
-            Drawing2D.QuickCreateSolidPen cPen, 0.6, vbWhite, 50#
-            m_Painter.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThin, cTransform
+            PD2D.QuickCreateSolidPen cPen, 0.6, vbWhite, 50#
+            PD2D.DrawPath_Transformed m_BackBuffer, cPen, m_CompassLinesThin, cTransform
             
             'Finally, copy the full contents of the "back buffer" surface onto the on-screen picture box.
             ' (Because the picture box's .AutoRedraw property is set to FALSE, we do not need to forcibly
@@ -945,12 +930,12 @@ Private Sub RenderTest2Animation()
             cPath.ApplyTransformation .PolygonTransform
             
             'Fill the polygon area using the polygon's random fill color at a fraction of its original opacity
-            Drawing2D.QuickCreateSolidBrush cBrush, .PolygonColorFill, 25#
-            m_Painter.FillPath m_BackBuffer, cBrush, cPath
+            PD2D.QuickCreateSolidBrush cBrush, .PolygonColorFill, 25#
+            PD2D.FillPath m_BackBuffer, cBrush, cPath
             
             'Finish by tracing the polygon outline using the polygon's random border color at 100% opacity
-            Drawing2D.QuickCreateSolidPen cPen, .PolygonBorderWidth, .PolygonColorBorder, 100#
-            m_Painter.DrawPath m_BackBuffer, cPen, cPath
+            PD2D.QuickCreateSolidPen cPen, .PolygonBorderWidth, .PolygonColorBorder, 100#
+            PD2D.DrawPath m_BackBuffer, cPen, cPath
             
         End With
         

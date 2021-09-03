@@ -398,11 +398,11 @@ Attribute VB_Exposed = False
 '1) When your project starts, you must initialize a pd2D backend before doing any painting tasks.  This involves
 '   placing one line of code inside Form_Load or Sub Main():
 '
-'   Drawing2D.StartRenderingEngine P2_DefaultBackend
+'   PD2D.StartRenderingEngine P2_DefaultBackend
 '
 '2) When your project ends, you need to release the backend you started inside Form_Load or Sub Main(), e.g.:
 '
-'   Drawing2D.StopRenderingEngine P2_DefaultBackend
+'   PD2D.StopRenderingEngine P2_DefaultBackend
 '
 '3) pd2D is based on a simple drawing model: a PAINTER uses PENS and BRUSHES to draw on various SURFACES.
 '   For simplicity, this project declares a single painter instance at form-level.  The painter's name
@@ -429,7 +429,7 @@ Attribute VB_Exposed = False
 '
 '   - To show our painting results on-screen, I will periodically copy the contents of "m_BackBuffer" into a
 '   second surface, called "m_TargetPictureBox".  This surface is created by wrapping a pd2Dsurface object around
-'   the main form's black picture box, using the helpful Drawing2D.QuickCreateSurfaceFromDC() function.
+'   the main form's black picture box, using the helpful PD2D.QuickCreateSurfaceFromDC() function.
 '
 '5) When performing drawing tasks, you'll probably create lots of pens and brushes.  You never need to worry
 '   about destroying these resources.  pd2D takes care of this for you.  The same goes for in-memory surfaces,
@@ -441,7 +441,7 @@ Attribute VB_Exposed = False
 '   creating and destroying controls as run-time -- but please be aware of it!)
 '
 '6) To simplify the most common pd2D tasks, I've created a lot of helper functions inside the master Drawing2D
-'   module.  These functions are prefixed with "Quick", e.g. "Drawing2D.QuickCreateSolidPen", which lets you
+'   module.  These functions are prefixed with "Quick", e.g. "PD2D.QuickCreateSolidPen", which lets you
 '   create a solid-colored pen for painting in just one line of code.  You'll probably want to make use of these,
 '   as they can save you some trouble over manually instantiating pens and setting individual properties one line
 '   at a time.
@@ -455,11 +455,6 @@ Attribute VB_Exposed = False
 
 
 Option Explicit
-
-'This single painter object performs all the drawing you see in this sample project.  Most projects will only ever
-' need a single painter object.  (Creating new painters is basically instantaneous, so you could also create
-' painters on-demand, if you prefer that approach.)
-Private m_Painter As pd2DPainter
 
 'To prevent flickering, we're not going to draw directly onto the main form's picture box.  Instead, we're going to
 ' draw to an invisible "in-memory" surface.  After our drawing is complete, we'll copy the entire contents of the
@@ -495,7 +490,7 @@ Private Sub cmdLoadImage_Click()
     If cFileOpen.GetOpenFileName(imgFilename, "", True, False, supportedImageFiles, , GetSampleImageFolder, "Please select an image file", , frmSample.hWnd) Then
         
         'pd2D provides a simplified function for loading images - just one line of code!
-        Drawing2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+        PD2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
         
         'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
         ' user selects "rotate", "skew", etc
@@ -549,23 +544,23 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    Drawing2D.StartRenderingEngine P2_DefaultBackend
+    PD2D.StartRenderingEngine P2_DefaultBackend
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     
     'Next, we want the drawing library to relay any relevant debug information to the immediate window.
     ' (You can set this value to whatever you want in your own projects; performance may see a tiny improvement if
     '  debug mode is turned off.)
-    Drawing2D.SetLibraryDebugMode True
+    'PD2D.SetLibraryDebugMode True
     
     'Next, we need a painter instance.  Most projects will only need one painter per project.  Just like real-life,
     ' a painter can work with any number of different pens, brushes, and surfaces.
-    Drawing2D.QuickCreatePainter m_Painter
+    'PD2D.QuickCreatePainter m_Painter
     
     'Next, let's create our in-memory surface, which I'm going to refer to as our "back buffer".  We will do all our
     ' painting on *this* surface.  (Note our use of the "Quick"-prefixed functions inside the Drawing2D module.
     ' These are a nice shorthand way to perform complicated instantiation tasks.)
-    Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
+    PD2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
     
     'When drawing onto an object, pd2D prefers pixel measurements.  I always recommend setting this at design-time,
     ' but just to be safe, but we can perform a failsafe check now.
@@ -608,7 +603,7 @@ Private Sub Form_Resize()
         picOutput.Move picOutput.Left, picOutput.Top, newOutputWidth, newOutputHeight
         
         'Because we use a back buffer for drawing, we also need to recreate it to match the new picture box size.
-        Drawing2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
+        PD2D.QuickCreateBlankSurface m_BackBuffer, picOutput.ScaleWidth, picOutput.ScaleHeight, True, True, vbWhite, 100#
         
     End If
 
@@ -617,12 +612,11 @@ End Sub
 Private Sub Form_Unload(Cancel As Integer)
     
     'Before we shut down the rendering backend, we need to release any remaining pd2D objects.
-    Set m_Painter = Nothing
     Set m_BackBuffer = Nothing
     Set m_CurrentImage = Nothing
     
     'As the final step at shutdown time, release the rendering backend we started inside Form_Load
-    Drawing2D.StopRenderingEngine P2_DefaultBackend
+    PD2D.StopRenderingEngine P2_DefaultBackend
     
 End Sub
 
@@ -680,7 +674,7 @@ Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
     'Paint the result!
     m_BackBuffer.EraseSurfaceContents vbWhite, 100#
     m_BackBuffer.SetSurfaceResizeQuality cboTransformQuality.ListIndex
-    m_Painter.DrawSurfaceTransformedF m_BackBuffer, m_CurrentImage, cTransform, 0, 0, m_CurrentImage.GetSurfaceWidth, m_CurrentImage.GetSurfaceHeight
+    PD2D.DrawSurfaceTransformedF m_BackBuffer, m_CurrentImage, cTransform, 0, 0, m_CurrentImage.GetSurfaceWidth, m_CurrentImage.GetSurfaceHeight
     
     'As the final step, copy the contents of the backbuffer to the viewport picture box
     m_BackBuffer.CopySurfaceToDC picOutput.hDC
@@ -717,7 +711,7 @@ Private Sub LoadSampleImage()
             imgFilename = GetSampleImageFolder & "music_icon.png"
     End Select
     
-    Drawing2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+    PD2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
     
     'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
     ' user selects "rotate", "skew", etc
@@ -728,7 +722,7 @@ End Sub
 Private Sub CloneViewport()
     
     Dim tmpViewport As pd2DSurface
-    Drawing2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, , picOutput.hWnd
+    PD2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, , picOutput.hWnd
     
     If (m_CurrentImage Is Nothing) Then Set m_CurrentImage = New pd2DSurface
     m_CurrentImage.CloneSurface tmpViewport
