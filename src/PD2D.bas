@@ -338,13 +338,6 @@ Public Type RectL
     Bottom As Long
 End Type
 
-Public Type RectL_WH
-    Left As Long
-    Top As Long
-    Width As Long
-    Height As Long
-End Type
-
 Public Type RectF
     Left As Single
     Top As Single
@@ -392,22 +385,22 @@ Private m_GDIPlusAvailable As Boolean
 Private m_BrushCount_GDIPlus As Long, m_PathCount_GDIPlus As Long, m_PenCount_GDIPlus As Long, m_RegionCount_GDIPlus As Long, m_SurfaceCount_GDIPlus As Long, m_TransformCount_GDIPlus As Long
 
 'Some APIs are used *so* frequently throughout PD that we declare them publicly
-Public Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (ByRef lpDst As Any, ByRef lpSrc As Any, ByVal byteLength As Long)
 Public Declare Sub CopyMemoryStrict Lib "kernel32" Alias "RtlMoveMemory" (ByVal lpDst As Long, ByVal lpSrc As Long, ByVal byteLength As Long)
 Public Declare Sub FillMemory Lib "kernel32" Alias "RtlFillMemory" (ByVal dstPointer As Long, ByVal numOfBytes As Long, ByVal fillValue As Byte)
-
 Public Declare Sub ZeroMemory Lib "kernel32" Alias "RtlZeroMemory" (ByVal dstPointer As Long, ByVal numOfBytes As Long)
 
 Public Declare Function VarPtrArray Lib "msvbvm60" Alias "VarPtr" (ptr() As Any) As Long
 
-Public Declare Sub GetMem1 Lib "msvbvm60" (ByVal ptrSrc As Long, ByRef dstByte As Byte)
-Public Declare Sub GetMem1_Ptr Lib "msvbvm60" Alias "GetMem1" (ByVal ptrSrc As Long, ByVal ptrDst1 As Long)
-Public Declare Sub GetMem2 Lib "msvbvm60" (ByVal ptrSrc As Long, ByRef dstInteger As Integer)
-Public Declare Sub GetMem2_Ptr Lib "msvbvm60" Alias "GetMem2" (ByVal ptrSrc As Long, ByVal ptrDst2 As Long)
+'Not all of these functions are used in PD2D, but they are enumerated here for your convenience.
+' Uncomment if curious.
+'Public Declare Sub GetMem1 Lib "msvbvm60" (ByVal ptrSrc As Long, ByRef dstByte As Byte)
+'Public Declare Sub GetMem1_Ptr Lib "msvbvm60" Alias "GetMem1" (ByVal ptrSrc As Long, ByVal ptrDst1 As Long)
+'Public Declare Sub GetMem2 Lib "msvbvm60" (ByVal ptrSrc As Long, ByRef dstInteger As Integer)
+'Public Declare Sub GetMem2_Ptr Lib "msvbvm60" Alias "GetMem2" (ByVal ptrSrc As Long, ByVal ptrDst2 As Long)
 Public Declare Sub GetMem4 Lib "msvbvm60" (ByVal ptrSrc As Long, ByRef dstValue As Long)
 Public Declare Sub GetMem4_Ptr Lib "msvbvm60" Alias "GetMem4" (ByVal ptrSrc As Long, ByVal ptrDst4 As Long)
-Public Declare Sub GetMem8_Ptr Lib "msvbvm60" Alias "GetMem8" (ByVal ptrSrc As Long, ByVal ptrDst8 As Long)
-Public Declare Sub PutMem1 Lib "msvbvm60" (ByVal ptrDst As Long, ByVal newValue As Byte)
+'Public Declare Sub GetMem8_Ptr Lib "msvbvm60" Alias "GetMem8" (ByVal ptrSrc As Long, ByVal ptrDst8 As Long)
+'Public Declare Sub PutMem1 Lib "msvbvm60" (ByVal ptrDst As Long, ByVal newValue As Byte)
 Public Declare Sub PutMem2 Lib "msvbvm60" (ByVal ptrDst As Long, ByVal newValue As Integer)
 Public Declare Sub PutMem4 Lib "msvbvm60" (ByVal ptrDst As Long, ByVal newValue As Long)
 

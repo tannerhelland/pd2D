@@ -638,17 +638,17 @@ Private Sub cmdReset_Click()
 End Sub
 
 Private Sub hscrTransform_Change(Index As Integer)
+    SynchronizeScrollBarLabels Index
     ApplyTransformation Index
 End Sub
 
 Private Sub hscrTransform_Scroll(Index As Integer)
+    SynchronizeScrollBarLabels Index
     ApplyTransformation Index
 End Sub
 
-Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
-    
-    If (m_CurrentImage Is Nothing) Then Exit Sub
-    
+Private Sub SynchronizeScrollBarLabels(ByVal srcScrollIndex As Integer)
+
     'Mirror the current transformation value to the neighboring label, as a convenience to the user
     If (srcScrollIndex <> 2) Then
         lblTransform(srcScrollIndex).Caption = Format$(hscrTransform(srcScrollIndex).Value / 100, "0.00")
@@ -656,6 +656,12 @@ Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
         lblTransform(srcScrollIndex).Caption = Format$(hscrTransform(srcScrollIndex).Value / 10, "0.00")
     End If
     lblTransform(srcScrollIndex).Refresh
+    
+End Sub
+
+Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
+    
+    If (m_CurrentImage Is Nothing) Then Exit Sub
     
     'Build a transformation object that describes the user's current transform settings.
     ' (Note that we always start by centering the image around (0, 0) - if we *don't* do this, transforms like rotation

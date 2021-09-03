@@ -21,20 +21,6 @@ Private Const CRYPT_STRING_BASE64 As Long = 1&
 Private Const CRYPT_STRING_HEXASCII As Long = &H4&
 'Private Const CRYPT_STRING_NOCR As Long = &H80000000
 Private Const CRYPT_STRING_NOCRLF As Long = &H40000000
-Private Const LOCALE_SYSTEM_DEFAULT As Long = &H800&
-
-'FoldString flags
-Private Enum FoldStringFlags
-    MAP_COMPOSITE = &H40
-    MAP_EXPAND_LIGATURES = &H2000
-    MAP_FOLDCZONE = &H10
-    MAP_FOLDDIGITS = &H80
-    MAP_PRECOMPOSED = &H20
-End Enum
-
-#If False Then
-    Private Const MAP_COMPOSITE = &H40, MAP_EXPAND_LIGATURES = &H2000, MAP_FOLDCZONE = &H10, MAP_FOLDDIGITS = &H80, MAP_PRECOMPOSED = &H20
-#End If
 
 'Locale identifiers; these need to be specified for certain string functions
 Public Enum PD_LocaleIdentifier
@@ -64,64 +50,14 @@ End Enum
     Private Const LINGUISTIC_IGNORECASE = &H10, LINGUISTIC_IGNOREDIACRITIC = &H20, NORM_IGNORECASE = &H1, NORM_IGNORENONSPACE = &H2, NORM_IGNORESYMBOLS = &H4, NORM_IGNOREWIDTH = &H20000, NORM_IGNOREKANATYPE = &H10000, NORM_LINGUISTIC_CASING = &H8000000, SORT_DIGITSASNUMBERS = &H8, SORT_STRINGSORT = &H1000
 #End If
 
-'While not technically Uniscribe-specific, this class wraps some other Unicode bits as a convenience
-Public Enum PD_StringRemap
-    sr_None = 0
-    sr_LowerCase = 1
-    sr_UpperCase = 2
-    sr_Hiragana = 3
-    sr_Katakana = 4
-    sr_ChineseSimple = 5
-    sr_ChineseTraditional = 6
-    sr_Titlecase = 7
-End Enum
-
-#If False Then
-    Private Const sr_None = 0, sr_LowerCase = 1, sr_UpperCase = 2, sr_Hiragana = 3, sr_Katakana = 4, sr_ChineseSimple = 5, sr_ChineseTraditional = 6, sr_Titlecase = 7
-#End If
-
-'(Both LCMapString variants use the same constants)
-Private Enum REMAP_STRING_API
-    LCMAP_LOWERCASE = &H100&
-    LCMAP_UPPERCASE = &H200&
-    LCMAP_TITLECASE = &H300&      'Windows 7 only!
-
-    LCMAP_HIRAGANA = &H100000
-    LCMAP_KATAKANA = &H200000
-
-    LCMAP_LINGUISTIC_CASING = &H1000000     'Per MSDN, "Use linguistic rules for casing, instead of file system rules (default)."
-                                            '           This flag is valid with LCMAP_LOWERCASE or LCMAP_UPPERCASE only."
-
-    LCMAP_SIMPLIFIED_CHINESE = &H2000000
-    LCMAP_TRADITIONAL_CHINESE = &H4000000
-End Enum
-
 Private Declare Function CryptBinaryToString Lib "crypt32" Alias "CryptBinaryToStringW" (ByVal ptrBinaryData As Long, ByVal numBytesToConvert As Long, ByVal dwFlags As Long, ByVal ptrToDstString As Long, ByRef sizeOfStringBuffer As Long) As Long
 Private Declare Function CryptStringToBinary Lib "crypt32" Alias "CryptStringToBinaryW" (ByVal pszString As Long, ByVal cchString As Long, ByVal dwFlags As Long, ByVal pbBinary As Long, ByRef pcbBinary As Long, ByRef pdwSkip As Long, ByRef pdwFlags As Long) As Long
 
 Private Declare Function CompareStringW Lib "kernel32" (ByVal lcID As PD_LocaleIdentifier, ByVal cmpFlags As StrCmpFlags, ByVal ptrToStr1 As Long, ByVal str1Len As Long, ByVal ptrToStr2 As Long, ByVal str2Len As Long) As Long
-Private Declare Function CompareStringOrdinal Lib "kernel32" (ByVal ptrToStr1 As Long, ByVal str1Len As Long, ByVal ptrToStr2 As Long, ByVal str2Len As Long, ByVal bIgnoreCase As Long) As Long
-Private Declare Function FoldStringW Lib "kernel32" (ByVal dwMapFlags As FoldStringFlags, ByVal lpSrcStr As Long, ByVal cchSrc As Long, ByVal lpDestStr As Long, ByVal cchDest As Long) As Long
-Private Declare Function LCMapStringW Lib "kernel32" (ByVal localeID As Long, ByVal dwMapFlags As REMAP_STRING_API, ByVal lpSrcStringPtr As Long, ByVal lenSrcString As Long, ByVal lpDstStringPtr As Long, ByVal lenDstString As Long) As Long
-Private Declare Function LCMapStringEx Lib "kernel32" (ByVal lpLocaleNameStringPt As Long, ByVal dwMapFlags As REMAP_STRING_API, ByVal lpSrcStringPtr As Long, ByVal lenSrcString As Long, ByVal lpDstStringPtr As Long, ByVal lenDstString As Long, ByVal lpVersionInformationPtr As Long, ByVal lpReserved As Long, ByVal sortHandle As Long) As Long 'Vista+ only!  (Note the lack of a trailing W in the function name.)
 Private Declare Function lstrlenA Lib "kernel32" (ByVal lpString As Long) As Long
 Private Declare Function lstrlenW Lib "kernel32" (ByVal lpString As Long) As Long
 Private Declare Function MultiByteToWideChar Lib "kernel32" (ByVal dstCodePage As Long, ByVal dwFlags As Long, ByVal lpMultiByteStr As Long, ByVal cbMultiByte As Long, ByVal lpWideCharStr As Long, ByVal cchWideChar As Long) As Long
 Private Declare Function WideCharToMultiByte Lib "kernel32" (ByVal dstCodePage As Long, ByVal dwFlags As Long, ByVal lpWideCharStr As Long, ByVal cchWideChar As Long, ByVal lpMultiByteStr As Long, ByVal cchMultiByte As Long, ByVal lpDefaultChar As Long, ByVal lpUsedDefaultChar As Long) As Long
-
-Private Enum UnicodeNormalizeForm
-    NormalizationOther = 0  'Unsupported
-    NormalizationC = 1
-    NormalizationD = 2
-    NormalizationKC = 3
-    NormalizationKD = 4
-End Enum
-
-#If False Then
-    Private Const NormalizationOther = 0, NormalizationC = 1, NormalizationD = 2, NormalizationKC = 3, NormalizationKD = 4
-#End If
-
-Private Declare Function NormalizeString Lib "Normaliz" (ByVal normForm As UnicodeNormalizeForm, ByVal lpSrcString As Long, ByVal cwSrcLength As Long, ByVal lpDstString As Long, ByVal cwDstLength As Long) As Long
 
 Private Declare Function SysAllocStringByteLen Lib "oleaut32" (ByVal srcPtr As Long, ByVal strLength As Long) As String
 

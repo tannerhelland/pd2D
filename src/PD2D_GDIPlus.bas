@@ -194,41 +194,6 @@ End Enum
     Private Const GP_EVT_Byte = 1, GP_EVT_ASCII = 2, GP_EVT_Short = 3, GP_EVT_Long = 4, GP_EVT_Rational = 5, GP_EVT_LongRange = 6, GP_EVT_Undefined = 7, GP_EVT_RationalRange = 8, GP_EVT_Pointer = 9
 #End If
 
-Public Enum GP_EncoderValue
-    GP_EV_ColorTypeCMYK = 0
-    GP_EV_ColorTypeYCCK = 1
-    GP_EV_CompressionLZW = 2
-    GP_EV_CompressionCCITT3 = 3
-    GP_EV_CompressionCCITT4 = 4
-    GP_EV_CompressionRle = 5
-    GP_EV_CompressionNone = 6
-    GP_EV_ScanMethodInterlaced = 7
-    GP_EV_ScanMethodNonInterlaced = 8
-    GP_EV_VersionGif87 = 9
-    GP_EV_VersionGif89 = 10
-    GP_EV_RenderProgressive = 11
-    GP_EV_RenderNonProgressive = 12
-    GP_EV_TransformRotate90 = 13
-    GP_EV_TransformRotate180 = 14
-    GP_EV_TransformRotate270 = 15
-    GP_EV_TransformFlipHorizontal = 16
-    GP_EV_TransformFlipVertical = 17
-    GP_EV_MultiFrame = 18
-    GP_EV_LastFrame = 19
-    GP_EV_Flush = 20
-    GP_EV_FrameDimensionTime = 21
-    GP_EV_FrameDimensionResolution = 22
-    GP_EV_FrameDimensionPage = 23
-    GP_EV_ColorTypeGray = 24
-    GP_EV_ColorTypeRGB = 25
-End Enum
-
-#If False Then
-    Private Const GP_EV_ColorTypeCMYK = 0, GP_EV_ColorTypeYCCK = 1, GP_EV_CompressionLZW = 2, GP_EV_CompressionCCITT3 = 3, GP_EV_CompressionCCITT4 = 4, GP_EV_CompressionRle = 5, GP_EV_CompressionNone = 6, GP_EV_ScanMethodInterlaced = 7, GP_EV_ScanMethodNonInterlaced = 8, GP_EV_VersionGif87 = 9, GP_EV_VersionGif89 = 10
-    Private Const GP_EV_RenderProgressive = 11, GP_EV_RenderNonProgressive = 12, GP_EV_TransformRotate90 = 13, GP_EV_TransformRotate180 = 14, GP_EV_TransformRotate270 = 15, GP_EV_TransformFlipHorizontal = 16, GP_EV_TransformFlipVertical = 17, GP_EV_MultiFrame = 18, GP_EV_LastFrame = 19, GP_EV_Flush = 20
-    Private Const GP_EV_FrameDimensionTime = 21, GP_EV_FrameDimensionResolution = 22, GP_EV_FrameDimensionPage = 23, GP_EV_ColorTypeGray = 24, GP_EV_ColorTypeRGB = 25
-#End If
-
 Public Enum GP_FillMode
     GP_FM_Alternate = 0&
     GP_FM_Winding = 1&
@@ -825,67 +790,6 @@ Private Type GP_ImageCodecInfo
     IC_SigMask As Long
 End Type
 
-'Helper structs for metafile headers.  IMPORTANT NOTE!  There are probably struct alignment issues with these structs,
-' as they are legacy structs that intermix 16- and 32-bit datatypes.  I do not need these at present (I only need them
-' as part of an unused union in a GDI+ metafile type), so I have not tested them thoroughly.  Use at your own risk.
-Private Type GDI_SizeL
-    cx As Long
-    cy As Long
-End Type
-
-Private Type GDI_MetaHeader
-    mtType As Integer
-    mtHeaderSize As Integer
-    mtVersion As Integer
-    mtSize As Long
-    mtNoObjects As Integer
-    mtMaxRecord As Long
-    mtNoParameters As Integer
-End Type
-
-Private Type GDIP_EnhMetaHeader3
-    itype As Long
-    nSize As Long
-    rclBounds As RectL
-    rclFrame As RectL
-    dSignature As Long
-    nVersion As Long
-    nBytes As Long
-    nRecords As Long
-    nHandles As Integer
-    sReserved As Integer
-    nDescription As Long
-    offDescription As Long
-    nPalEntries As Long
-    szlDevice As GDI_SizeL
-    szlMillimeters As GDI_SizeL
-End Type
-
-Private Type GP_MetafileHeader_UNION
-    muWmfHeader As GDI_MetaHeader
-    muEmfHeader As GDIP_EnhMetaHeader3
-End Type
-
-'Want additional information on a metafile-type Image object?  This struct contains basic header data.
-' IMPORTANT NOTE: please see the previous comment on struct alignment.  I can't guarantee that anything past
-' the mfOrigHeader union is aligned correctly; use those at your own risk.
-Private Type GP_MetafileHeader
-    mfType As GP_MetafileType
-    mfSize As Long
-    mfVersion As Long
-    mfEmfPlusFlags As Long
-    mfDpiX As Single
-    mfDpiY As Single
-    mfBoundsX As Long
-    mfBoundsY As Long
-    mfBoundsWidth As Long
-    mfBoundsHeight As Long
-    mfOrigHeader As GP_MetafileHeader_UNION
-    mfEmfPlusHeaderSize As Long
-    mfLogicalDpiX As Long
-    mfLogicalDpiY As Long
-End Type
-
 'GDI+ image properties
 Public Type GP_PropertyItem
     propID As GP_PropertyTag    'Tag identifier
@@ -898,15 +802,15 @@ End Type
 'Like image formats, export encoder properties are also defined by GUID.  These values come from
 ' the Win 8.1 version of gdiplusimaging.h.  Note that some are restricted to GDI+ v1.1.
 'Private Const GP_EP_ChrominanceTable As String = "{F2E455DC-09B3-4316-8260-676ADA32481C}"
-Private Const GP_EP_ColorDepth As String = "{66087055-AD66-4C7C-9A18-38A2310B8337}"
-Private Const GP_EP_Compression As String = "{E09D739D-CCD4-44EE-8EBA-3FBF8BE4FC58}"
+'Private Const GP_EP_ColorDepth As String = "{66087055-AD66-4C7C-9A18-38A2310B8337}"
+'Private Const GP_EP_Compression As String = "{E09D739D-CCD4-44EE-8EBA-3FBF8BE4FC58}"
 'Private Const GP_EP_LuminanceTable As String = "{EDB33BCE-0266-4A77-B904-27216099E717}"
 Private Const GP_EP_Quality As String = "{1D5BE4B5-FA4A-452D-9CDD-5DB35105E7EB}"
 'Private Const GP_EP_RenderMethod As String = "{6D42C53A-229A-4825-8BB7-5C99E2B9A8B8}"
 'Private Const GP_EP_SaveFlag As String = "{292266FC-AC40-47BF-8CFC-A85B89A655DE}"
 'Private Const GP_EP_ScanMethod As String = "{3A4E2661-3109-4E56-8536-42C156E7DCFA}"
 'Private Const GP_EP_Transformation As String = "{8D0EB2D1-A58E-4EA8-AA14-108074B7B6F9}"
-Private Const GP_EP_Version As String = "{24D18C76-814A-41A4-BF53-1C219CCCF797}"
+'Private Const GP_EP_Version As String = "{24D18C76-814A-41A4-BF53-1C219CCCF797}"
 
 'THESE ENCODER PROPERTIES REQUIRE GDI+ v1.1 OR LATER!
 'Private Const GP_EP_ColorSpace As String = "{AE7A62A0-EE2C-49D8-9D07-1BA8A927596E}"
@@ -915,9 +819,9 @@ Private Const GP_EP_Version As String = "{24D18C76-814A-41A4-BF53-1C219CCCF797}"
 'Multi-frame (GIF) and multi-page (TIFF) files support retrieval of individual pages via
 ' something Microsoft confusingly calls "frame dimensions".  Frame retrieval functions
 ' require you to specify which kind of frame you want to retrieve; these GUIDs control that.
-Private Const GP_FD_Page As String = "{7462DC86-6180-4C7E-8E3F-EE7333A7A483}"
+'Private Const GP_FD_Page As String = "{7462DC86-6180-4C7E-8E3F-EE7333A7A483}"
 'Private Const GP_FD_Resolution As String = "{84236F7B-3BD3-428F-8DAB-4EA1439CA315}"    'used for ICONs; PD parses those manually
-Private Const GP_FD_Time As String = "{6AEDBD6D-3FB5-418A-83A6-7F45229DC872}"
+'Private Const GP_FD_Time As String = "{6AEDBD6D-3FB5-418A-83A6-7F45229DC872}"
 
 'GDI+ uses GUIDs to define image formats.  VB6 doesn't let us predeclare byte arrays (at least not easily),
 ' so we save ourselves the trouble and just use string versions.
@@ -999,7 +903,7 @@ Private Declare Function GdipFillRectangle Lib "gdiplus" (ByVal hGraphics As Lon
 Private Declare Function GdipFillRectangleI Lib "gdiplus" (ByVal hGraphics As Long, ByVal hBrush As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long) As GP_Result
 
 'Private Declare Function GdipGetImageBounds Lib "gdiplus" (ByVal hImage As Long, ByRef dstRectF As RectF, ByRef dstUnit As GP_Unit) As GP_Result
-Private Declare Function GdipGetImageDimension Lib "gdiplus" (ByVal hImage As Long, ByRef dstWidth As Single, ByRef dstHeight As Single) As GP_Result
+'Private Declare Function GdipGetImageDimension Lib "gdiplus" (ByVal hImage As Long, ByRef dstWidth As Single, ByRef dstHeight As Single) As GP_Result
 'Private Declare Function GdipGetImageDecoders Lib "gdiplus" (ByVal numOfEncoders As Long, ByVal sizeOfEncoders As Long, ByVal ptrToDstEncoders As Long) As GP_Result
 'Private Declare Function GdipGetImageDecodersSize Lib "gdiplus" (ByRef numOfEncoders As Long, ByRef sizeOfEncoders As Long) As GP_Result
 Private Declare Function GdipGetImageEncoders Lib "gdiplus" (ByVal numOfEncoders As Long, ByVal sizeOfEncoders As Long, ByVal ptrToDstEncoders As Long) As GP_Result
@@ -1011,15 +915,10 @@ Private Declare Function GdipGetImageRawFormat Lib "gdiplus" (ByVal hImage As Lo
 Private Declare Function GdipGetImageType Lib "gdiplus" (ByVal srcImage As Long, ByRef dstImageType As GP_ImageType) As GP_Result
 Private Declare Function GdipGetImageVerticalResolution Lib "gdiplus" (ByVal hImage As Long, ByRef dstVResolution As Single) As GP_Result
 Private Declare Function GdipGetImageWidth Lib "gdiplus" (ByVal hImage As Long, ByRef dstWidth As Long) As GP_Result
-Private Declare Function GdipGetMetafileHeaderFromMetafile Lib "gdiplus" (ByVal hMetafile As Long, ByRef dstHeader As GP_MetafileHeader) As GP_Result
 Private Declare Function GdipGetPropertyItem Lib "gdiplus" (ByVal hImage As Long, ByVal gpPropertyID As Long, ByVal srcPropertySize As Long, ByVal ptrToDstBuffer As Long) As GP_Result
 Private Declare Function GdipGetPropertyItemSize Lib "gdiplus" (ByVal hImage As Long, ByVal gpPropertyID As GP_PropertyTag, ByRef dstPropertySize As Long) As GP_Result
 
-Private Declare Function GdipImageGetFrameCount Lib "gdiplus" (ByVal hImage As Long, ByVal ptrToDimensionGuid As Long, ByRef dstCount As Long) As GP_Result
-Private Declare Function GdipImageGetFrameDimensionsCount Lib "gdiplus" (ByVal hImage As Long, ByRef dstCount As Long) As GP_Result
-Private Declare Function GdipImageGetFrameDimensionsList Lib "gdiplus" (ByVal hImage As Long, ByVal ptrToDimensionGuids As Long, ByVal srcCount As Long) As GP_Result
 Private Declare Function GdipImageRotateFlip Lib "gdiplus" (ByVal hImage As Long, ByVal rotateFlipType As GP_RotateFlip) As GP_Result
-Private Declare Function GdipImageSelectActiveFrame Lib "gdiplus" (ByVal hImage As Long, ByVal ptrToDimensionGuid As Long, ByVal frameIndex As Long) As GP_Result
 
 Private Declare Function GdipLoadImageFromFile Lib "gdiplus" (ByVal ptrSrcFilename As Long, ByRef dstGdipImage As Long) As GP_Result
 Private Declare Function GdipLoadImageFromStream Lib "gdiplus" (ByVal srcIStream As Long, ByRef dstGdipImage As Long) As GP_Result
@@ -1035,7 +934,6 @@ Private Declare Function GdipSetImageAttributesColorMatrix Lib "gdiplus" (ByVal 
 Private Declare Function GdipSetInterpolationMode Lib "gdiplus" (ByVal hGraphics As Long, ByVal newInterpolationMode As GP_InterpolationMode) As GP_Result
 Private Declare Function GdipSetLineGammaCorrection Lib "gdiplus" (ByVal hBrush As Long, ByVal useGammaCorrection As Long) As GP_Result
 Private Declare Function GdipSetLinePresetBlend Lib "gdiplus" (ByVal hBrush As Long, ByVal ptrToFirstColor As Long, ByVal ptrToFirstPosition As Long, ByVal numOfPoints As Long) As GP_Result
-Private Declare Function GdipSetMetafileDownLevelRasterizationLimit Lib "gdiplus" (ByVal hMetafile As Long, ByVal metafileRasterizationLimitDpi As Long) As GP_Result
 Private Declare Function GdipSetPathGradientCenterPoint Lib "gdiplus" (ByVal hBrush As Long, ByRef newCenterPoints As PointFloat) As GP_Result
 Private Declare Function GdipSetPathGradientGammaCorrection Lib "gdiplus" (ByVal hBrush As Long, ByVal useGammaCorrection As Long) As GP_Result
 Private Declare Function GdipSetPathGradientPresetBlend Lib "gdiplus" (ByVal hBrush As Long, ByVal ptrToFirstColor As Long, ByVal ptrToFirstPosition As Long, ByVal numOfPoints As Long) As GP_Result
@@ -1084,18 +982,6 @@ Private m_TransformDIB As pd2DDIB, m_TransformGraphics As Long
 ' an alpha operation is required, we simply create a default identity matrix at initialization,
 ' then re-use it as necessary.
 Private m_AttributesMatrix() As Single
-
-'When loading multi-page (TIFF) or multi-frame (GIF) images, we first perform a default load operation
-' on the first page/frame. (This gives the user something to work with if subsequent pages fail,
-' which is worryingly possible especially given the complexities of loading TIFFs.)  PD's master load
-' function can then do whatever it needs to - e.g. prompt the user for desired load behavior - and
-' notify GDI+ of the result.  If the user wants more pages/frames from the file, we don't have to load
-' it again; instead, we can just activate subsequent pages in turn, carrying on where we first left off.
-Private m_hMultiPageImage As Long
-
-'When loading GIFs, we need to cache some extra GIF-related metadata (e.g. frame times).  This metadata
-' gets embedded into a master pdImage object, and reused at export time as relevant.
-Private m_FrameTimes() As Long, m_FrameCount As Long
 
 'Use GDI+ to resize a DIB.  (Technically, to copy a resized portion of a source image into a destination image.)
 ' The call is formatted similar to StretchBlt, as it used to replace StretchBlt when working with 32bpp data.
@@ -1390,55 +1276,6 @@ Public Function GDIPlusFillDC_Brush(ByRef dstDC As Long, ByVal srcBrushHandle As
 
 End Function
 
-'Use GDI+ to quickly convert a 24bpp DIB to 32bpp with solid alpha channel
-Public Sub GDIPlusConvertDIB24to32(ByRef dstDIB As pd2DDIB)
-    
-    If (dstDIB.GetDIBColorDepth = 32) Then Exit Sub
-    
-    Dim dstBitmap As Long, srcBitmap As Long
-    
-    'Create a temporary source DIB to hold the intermediate copy of the image
-    Dim srcDIB As pd2DDIB
-    Set srcDIB = New pd2DDIB
-    srcDIB.CreateFromExistingDIB dstDIB
-    
-    'We know the source DIB is 24bpp, so use GdipCreateBitmapFromGdiDib to obtain a handle
-    Dim imgHeader As BITMAPINFO
-    With imgHeader.Header
-        .Size = Len(imgHeader.Header)
-        .Planes = 1
-        .BitCount = srcDIB.GetDIBColorDepth
-        .Width = srcDIB.GetDIBWidth
-        .Height = -srcDIB.GetDIBHeight
-    End With
-    
-    GdipCreateBitmapFromGdiDib imgHeader, srcDIB.GetDIBPointer, srcBitmap
-    
-    'Next, recreate the destination DIB as 32bpp
-    dstDIB.CreateBlank srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, 32, , 255
-    
-    'Clone the bitmap area from source to destination, while converting format as necessary
-    Dim gdipReturn As Long
-    gdipReturn = GdipCloneBitmapAreaI(0, 0, dstDIB.GetDIBWidth, dstDIB.GetDIBHeight, GP_PF_32bppPARGB, srcBitmap, dstBitmap)
-    GdipDisposeImage srcBitmap
-    
-    'Create a GDI+ graphics object that points to the destination DIB's DC
-    Dim hGraphics As Long
-    GdipCreateFromHDC dstDIB.GetDIBDC, hGraphics
-    
-    'Paint the converted image to the destination
-    GdipDrawImage hGraphics, dstBitmap, 0, 0
-    
-    'The target image will always have premultiplied alpha (not really relevant, as the source is 24-bpp, but this
-    ' lets us use various accelerated codepaths throughout the project).
-    dstDIB.SetInitialAlphaPremultiplicationState True
-    
-    'Release our bitmap copies and GDI+ instances
-    GdipDisposeImage dstBitmap
-    GdipDeleteGraphics hGraphics
- 
-End Sub
-
 'Returns TRUE if the source image...
 ' 1) contains orientation data, and...
 ' 2) said orientation data is *not* "standard orientation", and...
@@ -1706,279 +1543,6 @@ Public Sub GDIPlus_PlgBlt(ByRef dstDIB As pd2DDIB, ByRef plgPoints() As PointFlo
     'Debug.Print Format(CStr((Timer - profileTime) * 1000), "0000.00")
     
 End Sub
-
-'Given a source DIB and an angle, rotate it into a destination DIB.  The destination DIB can be automatically resized
-' to fit the rotated image, or a parameter can be set, instructing the function to use the destination DIB "as-is"
-Public Sub GDIPlus_RotateDIBPlgStyle(ByRef srcDIB As pd2DDIB, ByRef dstDIB As pd2DDIB, ByVal rotateAngle As Single, Optional ByVal dstDIBAlreadySized As Boolean = False, Optional ByVal rotateQuality As GP_InterpolationMode = GP_IM_HighQualityBicubic, Optional ByVal transparentBackground As Boolean = True, Optional ByVal newBackColor As Long = vbWhite)
-    
-    'Shortcut angle = 0!
-    If (rotateAngle = 0!) Then
-        If (dstDIB Is Nothing) Then Set dstDIB = New pd2DDIB
-        dstDIB.CreateFromExistingDIB srcDIB
-        Exit Sub
-    End If
-    
-    'Before doing any rotating or blurring, we need to figure out the size of our destination image.  If we don't
-    ' do this, the rotation will chop off the image's corners!
-    Dim nWidth As Double, nHeight As Double
-    PD2D_Math.FindBoundarySizeOfRotatedRect srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, rotateAngle, nWidth, nHeight, False
-    
-    'Use these dimensions to size the destination image, as requested by the user
-    If dstDIBAlreadySized Then
-        nWidth = dstDIB.GetDIBWidth
-        nHeight = dstDIB.GetDIBHeight
-        If (Not transparentBackground) Then PD2D_GDIPlus.GDIPlusFillDIBRect dstDIB, 0, 0, dstDIB.GetDIBWidth + 1, dstDIB.GetDIBHeight + 1, newBackColor, 255, GP_CM_SourceCopy
-    Else
-        If (dstDIB Is Nothing) Then Set dstDIB = New pd2DDIB
-        If transparentBackground Then
-            dstDIB.CreateBlank nWidth, nHeight, srcDIB.GetDIBColorDepth, 0, 0
-        Else
-            dstDIB.CreateBlank nWidth, nHeight, srcDIB.GetDIBColorDepth, newBackColor, 255
-        End If
-    End If
-    
-    'We also want a copy of the corner points of the rotated rect; we'll use these to perform a fast PlgBlt-like operation,
-    ' which is how we draw both the rotation and the corner extensions.
-    Dim listOfPoints() As PointFloat
-    ReDim listOfPoints(0 To 3) As PointFloat
-    PD2D_Math.FindCornersOfRotatedRect srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, rotateAngle, listOfPoints, True
-    
-    'Calculate the size difference between the source and destination images.  We need to add this offset to all
-    ' rotation coordinates, to ensure the rotated image is fully contained within the destination DIB.
-    Dim hOffset As Double, vOffset As Double
-    hOffset = (nWidth - srcDIB.GetDIBWidth) * 0.5
-    vOffset = (nHeight - srcDIB.GetDIBHeight) * 0.5
-    
-    'Apply those offsets to all rotation points, and because GDI+ requires us to use an offset pixel mode for
-    ' non-shit results along edges, pad all coordinates with an extra half-pixel as well.
-    ' (NOTE: we now move the +0.5 to the very end of the transform, as that's the only place it matters.)
-    Dim i As Long
-    For i = 0 To 3
-        listOfPoints(i).x = listOfPoints(i).x + hOffset
-        listOfPoints(i).y = listOfPoints(i).y + vOffset
-    Next i
-    
-    'If a background color is being applied, "cut out" the target region now
-    If (Not transparentBackground) Then
-        
-        Dim tmpPoints() As PointFloat
-        ReDim tmpPoints(0 To 3) As PointFloat
-        tmpPoints(0) = listOfPoints(0)
-        tmpPoints(1) = listOfPoints(1)
-        tmpPoints(2) = listOfPoints(3)
-        tmpPoints(3) = listOfPoints(2)
-        
-        'Find the "center" of the rotated image
-        Dim cx As Single, cy As Single
-        For i = 0 To 3
-            cx = cx + tmpPoints(i).x
-            cy = cy + tmpPoints(i).y
-        Next i
-        
-        cx = cx * 0.25
-        cy = cy * 0.25
-        
-        'Re-center the points around (0, 0) and add 0.5 for GDI+ half-pixel offset requirements
-        For i = 0 To 3
-            tmpPoints(i).x = tmpPoints(i).x - cx + 0.5!
-            tmpPoints(i).y = tmpPoints(i).y - cy + 0.5!
-        Next i
-        
-        'For each corner of the rotated square, convert the point to polar coordinates, then shrink the radius by one.
-        Dim tmpAngle As Double, tmpRadius As Double, tmpX As Double, tmpY As Double
-        For i = 0 To 3
-            
-            PD2D_Math.ConvertCartesianToPolar tmpPoints(i).x, tmpPoints(i).y, tmpRadius, tmpAngle
-            tmpRadius = tmpRadius - 1#
-            PD2D_Math.ConvertPolarToCartesian tmpAngle, tmpRadius, tmpX, tmpY
-            
-            'Re-center around the original center point
-            tmpPoints(i).x = tmpX + cx
-            tmpPoints(i).y = tmpY + cy
-            
-        Next i
-        
-        'Paint the selected area transparent
-        Dim tmpGraphics As Long, tmpBrush As Long
-        GdipCreateFromHDC dstDIB.GetDIBDC, tmpGraphics
-        tmpBrush = GetGDIPlusSolidBrushHandle(0, 0)
-        
-        GdipSetCompositingMode tmpGraphics, GP_CM_SourceCopy
-        GdipSetPixelOffsetMode tmpGraphics, GP_POM_HighQuality
-        GdipSetInterpolationMode tmpGraphics, rotateQuality
-        GdipFillPolygon tmpGraphics, tmpBrush, VarPtr(tmpPoints(0)), 4, GP_FM_Alternate
-        GdipSetPixelOffsetMode tmpGraphics, GP_POM_HighSpeed
-        GdipSetCompositingMode tmpGraphics, GP_CM_SourceOver
-        
-        ReleaseGDIPlusBrush tmpBrush
-        ReleaseGDIPlusGraphics tmpGraphics
-        
-    End If
-    
-    'Rotate the source DIB into the destination DIB.  At this point, corners are still blank - we'll deal with those momentarily.
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, listOfPoints, srcDIB, 0!, 0!, srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, 1!, rotateQuality, True
-    
-End Sub
-
-'Given a regular ol' DIB and an angle, return a DIB that is rotated by that angle, with its edge values clamped and extended
-' to fill all empty space around the rotated image.  This very cool operation allows us to support angles for any filter
-' with a grid implementation (e.g. something that operates on the (x, y) axes of an image, like pixellate or blur).
-Public Sub GDIPlus_GetRotatedClampedDIB(ByRef srcDIB As pd2DDIB, ByRef dstDIB As pd2DDIB, ByVal rotateAngle As Single, Optional ByVal padToIntegerCalcs As Boolean = True)
-    
-    'Before doing any rotating or blurring, we need to figure out the size of our destination image.  If we don't
-    ' do this, the rotation will chop off the image's corners!
-    Dim nWidth As Double, nHeight As Double
-    PD2D_Math.FindBoundarySizeOfRotatedRect srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, rotateAngle, nWidth, nHeight, padToIntegerCalcs
-    
-    'Use these dimensions to size the destination image
-    If (dstDIB Is Nothing) Then Set dstDIB = New pd2DDIB
-    
-    'Shortcut angle = 0
-    If (rotateAngle = 0!) Then
-        dstDIB.CreateFromExistingDIB srcDIB
-        Exit Sub
-    End If
-    
-    If (dstDIB.GetDIBWidth <> nWidth) Or (dstDIB.GetDIBHeight <> nHeight) Or (dstDIB.GetDIBColorDepth <> srcDIB.GetDIBColorDepth) Then
-        dstDIB.CreateBlank nWidth, nHeight, srcDIB.GetDIBColorDepth, 0, 0
-    Else
-        dstDIB.ResetDIB 0
-    End If
-    
-    'We also want a copy of the corner points of the rotated rect; we'll use these to perform a fast PlgBlt-like operation,
-    ' which is how we draw both the rotation and the corner extensions.
-    Dim listOfPoints() As PointFloat
-    ReDim listOfPoints(0 To 3) As PointFloat
-    PD2D_Math.FindCornersOfRotatedRect srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, rotateAngle, listOfPoints, True
-    
-    'Calculate the size difference between the source and destination images.  We need to add this offset to all
-    ' rotation coordinates, to ensure the rotated image is fully contained within the destination DIB.
-    Dim hOffset As Double, vOffset As Double
-    hOffset = (nWidth - srcDIB.GetDIBWidth) / 2#
-    vOffset = (nHeight - srcDIB.GetDIBHeight) / 2#
-    
-    'Apply those offsets to all rotation points, and because GDI+ requires us to use an offset pixel mode for
-    ' non-shit results along edges, pad all coordinates with an extra half-pixel as well.
-    Dim useHalfPixels As Boolean, fixEdges As Boolean
-    useHalfPixels = True
-    fixEdges = True
-    
-    Dim i As Long
-    For i = 0 To 3
-        listOfPoints(i).x = listOfPoints(i).x + hOffset
-        listOfPoints(i).y = listOfPoints(i).y + vOffset
-        If useHalfPixels Then
-            listOfPoints(i).x = listOfPoints(i).x + 0.5
-            listOfPoints(i).y = listOfPoints(i).y + 0.5
-        End If
-    Next i
-    
-    'Rotate the source DIB into the destination DIB.  At this point, corners are still blank - we'll deal with those momentarily.
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, listOfPoints, srcDIB, 0, 0, srcDIB.GetDIBWidth, srcDIB.GetDIBHeight, 1, GP_IM_HighQualityBilinear, useHalfPixels, fixEdges
-    
-    Dim intrplMode As GP_InterpolationMode
-    intrplMode = GP_IM_HighQualityBilinear
-    useHalfPixels = True
-    fixEdges = True
-    
-    'We're now going to calculate a whole bunch of geometry based around the concept of extending a rectangle from
-    ' each edge of our rotated image, out to the corner of the rotation DIB.  We will then fill this dead space with a
-    ' stretched version of the image edge, resulting in "clamped" edge behavior.
-    Dim diagDistance As Double, distDiff As Double
-    Dim dx As Double, dy As Double, lineLength As Double, pX As Double, pY As Double
-    Dim padPoints() As PointFloat
-    ReDim padPoints(0 To 2) As PointFloat
-    
-    'Calculate the distance from the center of the rotated image to the corner of the rotated image
-    diagDistance = Sqr(nWidth * nWidth + nHeight * nHeight) * 0.5
-    
-    'Get the difference between the diagonal distance, and the original height of the image.  This is the distance
-    ' where we need to provide clamped pixels on this edge.
-    distDiff = diagDistance - (srcDIB.GetDIBHeight / 2#)
-    
-    'Calculate delta x/y values for the top line, then convert those into unit vectors
-    dx = listOfPoints(1).x - listOfPoints(0).x
-    dy = listOfPoints(1).y - listOfPoints(0).y
-    lineLength = Sqr(dx * dx + dy * dy)
-    dx = dx / lineLength
-    dy = dy / lineLength
-    
-    'dX/Y now represent a vector in the direction of the line.  We want a perpendicular vector instead (because we're
-    ' extending a rectangle out from that image edge), and we want the vector to be of length distDiff, so it reaches
-    ' all the way to the corner.
-    pX = distDiff * -dy
-    pY = distDiff * dx
-    
-    'Use this perpendicular vector to calculate new parallelogram coordinates, which "extrude" the top of the image
-    ' from where it appears on the rotated image, to the very edge of the image.
-    padPoints(0).x = listOfPoints(0).x - pX
-    padPoints(0).y = listOfPoints(0).y - pY
-    padPoints(1).x = listOfPoints(1).x - pX
-    padPoints(1).y = listOfPoints(1).y - pY
-    padPoints(2).x = listOfPoints(0).x
-    padPoints(2).y = listOfPoints(0).y
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, padPoints, srcDIB, 0, 0, srcDIB.GetDIBWidth, 1, 1, intrplMode, useHalfPixels, fixEdges
-    
-    'Now repeat the above steps for the bottom of the image.  Note that we can reuse almost all of the calculations,
-    ' as this line is parallel to the one we just calculated.
-    padPoints(0).x = listOfPoints(2).x - (pX / distDiff)
-    padPoints(0).y = listOfPoints(2).y - (pY / distDiff)
-    padPoints(1).x = listOfPoints(3).x - (pX / distDiff)
-    padPoints(1).y = listOfPoints(3).y - (pY / distDiff)
-    padPoints(2).x = listOfPoints(2).x + pX
-    padPoints(2).y = listOfPoints(2).y + pY
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, padPoints, srcDIB, 0, srcDIB.GetDIBHeight - 2, srcDIB.GetDIBWidth, 1, 1, intrplMode, useHalfPixels, fixEdges
-    
-    'We are now going to repeat the above steps, but for the left and right edges of the image.  The end result of this
-    ' will be a rotated destination image, with clamped values extending from all image edges.
-    
-    'Get the difference between the diagonal distance, and the original width of the image.  This is the distance
-    ' where we need to provide clamped pixels on this edge.
-    distDiff = diagDistance - (srcDIB.GetDIBWidth / 2#)
-    
-    'Calculate delta x/y values for the left line, then convert those into unit vectors
-    dx = listOfPoints(2).x - listOfPoints(0).x
-    dy = listOfPoints(2).y - listOfPoints(0).y
-    lineLength = Sqr(dx * dx + dy * dy)
-    dx = dx / lineLength
-    dy = dy / lineLength
-    
-    'dX/Y now represent a vector in the direction of the line.  We want a perpendicular vector instead,
-    ' of length distDiff.
-    pX = distDiff * -dy
-    pY = distDiff * dx
-    
-    'Use the perpendicular vector to calculate new parallelogram coordinates, which "extrude" the left of the image
-    ' from where it appears on the rotated image, to the very edge of the image.
-    padPoints(0).x = listOfPoints(0).x + pX
-    padPoints(0).y = listOfPoints(0).y + pY
-    padPoints(1).x = listOfPoints(0).x
-    padPoints(1).y = listOfPoints(0).y
-    padPoints(2).x = listOfPoints(2).x + pX
-    padPoints(2).y = listOfPoints(2).y + pY
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, padPoints, srcDIB, 0, 0, 1, srcDIB.GetDIBHeight, 1, intrplMode, useHalfPixels, fixEdges
-    
-    '...and finally, repeat everything for the right side of the image
-    padPoints(0).x = listOfPoints(1).x + (pX / distDiff)
-    padPoints(0).y = listOfPoints(1).y + (pY / distDiff)
-    padPoints(1).x = listOfPoints(1).x - pX
-    padPoints(1).y = listOfPoints(1).y - pY
-    padPoints(2).x = listOfPoints(3).x + (pX / distDiff)
-    padPoints(2).y = listOfPoints(3).y + (pY / distDiff)
-    PD2D_GDIPlus.GDIPlus_PlgBlt dstDIB, padPoints, srcDIB, srcDIB.GetDIBWidth - 2, 0, 1, srcDIB.GetDIBHeight, 1, intrplMode, useHalfPixels, fixEdges
-    
-    'Our work here is complete!
-
-End Sub
-
-'************************************************************************************************************
-'
-'This module is currently undergoing heavy clean-up.  Functions that have been modernized and revised
-' are included below this line.  (The goal is to move *all* functions down here eventually.)
-'
-'************************************************************************************************************
-
-
 
 'At start-up, this function is called to determine whether or not we have GDI+ available on this machine.
 Public Function GDIP_StartEngine(Optional ByVal hookDebugProc As Boolean = False) As Boolean
