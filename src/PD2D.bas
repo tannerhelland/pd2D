@@ -18,20 +18,6 @@ Option Explicit
 ' enabling it in production builds as it has perf repercussions.
 Public Const PD2D_DEBUG_MODE As Boolean = False
 
-'If possible (e.g. painting without stretching), this painter class will drop back to bare AlphaBlend calls
-' for image rendering.  This provides a meaningful performance improvement over GDI+ draw calls.
-Private Declare Function AlphaBlend Lib "gdi32" Alias "GdiAlphaBlend" (ByVal hDestDC As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long, ByVal hSrcDC As Long, ByVal xSrc As Long, ByVal ySrc As Long, ByVal WidthSrc As Long, ByVal HeightSrc As Long, ByVal blendFunct As Long) As Long
-
-'In the future, this module may support multiple different rendering backends.  At present, however, only GDI+ is used.
-Public Enum PD_2D_RENDERING_BACKEND
-    P2_DefaultBackend = 0
-    P2_GDIPlusBackend = 1
-End Enum
-
-#If False Then
-    Private Const P2_DefaultBackend = 0, P2_GDIPlusBackend = 1
-#End If
-
 'When wrapping a DC, a surface needs to know the size of the object being painted on.  If an hWnd is supplied alongside
 ' the DC, we'll use that to auto-detect dimensions; otherwise, the caller needs to provide them.  (If the size is
 ' unknown, we'll use the size of the bitmap currently selected into the DC, but that's *not* reliable - so don't use it
@@ -467,19 +453,19 @@ Public Function QuickCreateBlankSurface(ByRef dstSurface As pd2DSurface, ByVal s
 End Function
 
 'Shortcut function for creating a new surface with the default rendering backend and default rendering settings
-Public Function QuickCreateSurfaceFromDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal srcHwnd As Long = 0) As Boolean
+Public Function QuickWrapSurfaceAroundDC(ByRef dstSurface As pd2DSurface, ByVal srcDC As Long, Optional ByVal enableAntialiasing As Boolean = False, Optional ByVal srcHwnd As Long = 0) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
         If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
-        QuickCreateSurfaceFromDC = .WrapSurfaceAroundDC(srcDC, srcHwnd)
+        QuickWrapSurfaceAroundDC = .WrapSurfaceAroundDC(srcDC, srcHwnd)
     End With
 End Function
 
-Public Function QuickCreateSurfaceFromDIB(ByRef dstSurface As pd2DSurface, ByVal srcDIB As pd2DDIB, Optional ByVal enableAntialiasing As Boolean = False) As Boolean
+Public Function QuickWrapSurfaceAroundDIB(ByRef dstSurface As pd2DSurface, ByVal srcDIB As pd2DDIB, Optional ByVal enableAntialiasing As Boolean = False) As Boolean
     If (dstSurface Is Nothing) Then Set dstSurface = New pd2DSurface Else dstSurface.ResetAllProperties
     With dstSurface
         If enableAntialiasing Then .SetSurfaceAntialiasing P2_AA_HighQuality Else .SetSurfaceAntialiasing P2_AA_None
-        QuickCreateSurfaceFromDIB = .WrapSurfaceAroundpd2ddib(srcDIB)
+        QuickWrapSurfaceAroundDIB = .WrapSurfaceAroundpd2DDIB(srcDIB)
     End With
 End Function
 
@@ -574,7 +560,7 @@ End Function
 ' and source file path.
 '
 'The target object needs to have a DC property, or this function will fail.
-Public Function QuickLoadPicture(ByRef dstObject As Object, ByVal srcPath As String, Optional ByVal resizeImageToFit As Boolean = True) As Boolean
+Public Function QuickLoadPictureToVBObject(ByRef dstObject As Object, ByVal srcPath As String, Optional ByVal resizeImageToFit As Boolean = True) As Boolean
     
     On Error GoTo LoadPictureFail
     
@@ -582,13 +568,13 @@ Public Function QuickLoadPicture(ByRef dstObject As Object, ByVal srcPath As Str
     If PD2D.QuickCreateSurfaceFromFile(srcSurface, srcPath) Then
         
         Dim dstSurface As pd2DSurface
-        If PD2D.QuickCreateSurfaceFromDC(dstSurface, dstObject.hDC, True, dstObject.hWnd) Then
+        If PD2D.QuickWrapSurfaceAroundDC(dstSurface, dstObject.hDC, True, dstObject.hWnd) Then
             
             If resizeImageToFit Then
                 
                 'If the source surface is smaller than the destination surface, center the image to fit
                 If ((srcSurface.GetSurfaceWidth < dstSurface.GetSurfaceWidth) And (srcSurface.GetSurfaceHeight < dstSurface.GetSurfaceHeight)) Then
-                    QuickLoadPicture = PD2D.DrawSurfaceI(dstSurface, (dstSurface.GetSurfaceWidth - srcSurface.GetSurfaceWidth) \ 2, (dstSurface.GetSurfaceHeight - srcSurface.GetSurfaceHeight) \ 2, srcSurface)
+                    QuickLoadPictureToVBObject = PD2D.DrawSurfaceI(dstSurface, (dstSurface.GetSurfaceWidth - srcSurface.GetSurfaceWidth) \ 2, (dstSurface.GetSurfaceHeight - srcSurface.GetSurfaceHeight) \ 2, srcSurface)
                 Else
                 
                     'Calculate the correct target size, and use that size when painting.
@@ -596,12 +582,12 @@ Public Function QuickLoadPicture(ByRef dstObject As Object, ByVal srcPath As Str
                     PD2D_Math.ConvertAspectRatio srcSurface.GetSurfaceWidth, srcSurface.GetSurfaceHeight, dstSurface.GetSurfaceWidth, dstSurface.GetSurfaceHeight, newWidth, newHeight
                     
                     dstSurface.SetSurfaceResizeQuality P2_RQ_Bicubic
-                    QuickLoadPicture = PD2D.DrawSurfaceResizedI(dstSurface, (dstSurface.GetSurfaceWidth - newWidth) \ 2, (dstSurface.GetSurfaceHeight - newHeight) \ 2, newWidth, newHeight, srcSurface)
+                    QuickLoadPictureToVBObject = PD2D.DrawSurfaceResizedI(dstSurface, (dstSurface.GetSurfaceWidth - newWidth) \ 2, (dstSurface.GetSurfaceHeight - newHeight) \ 2, newWidth, newHeight, srcSurface)
                     
                 End If
                 
             Else
-                QuickLoadPicture = PD2D.DrawSurfaceI(dstSurface, 0, 0, srcSurface)
+                QuickLoadPictureToVBObject = PD2D.DrawSurfaceI(dstSurface, 0, 0, srcSurface)
             End If
             
         End If
@@ -611,61 +597,37 @@ Public Function QuickLoadPicture(ByRef dstObject As Object, ByVal srcPath As Str
     Exit Function
     
 LoadPictureFail:
-    InternalError "QuickLoadPicture", Err.Description, Err.Number
-    QuickLoadPicture = False
+    InternalError "QuickLoadPictureToVBObject", Err.Description, Err.Number
+    QuickLoadPictureToVBObject = False
 End Function
 
-Public Function IsRenderingEngineActive(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
-    Select Case targetBackend
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            IsRenderingEngineActive = m_GDIPlusAvailable
-        Case Else
-            IsRenderingEngineActive = False
-    End Select
+Public Function IsRenderingEngineActive() As Boolean
+    IsRenderingEngineActive = m_GDIPlusAvailable
 End Function
 
-'Start a new rendering backend
-Public Function StartRenderingEngine(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
-
-    Select Case targetBackend
-            
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            StartRenderingEngine = PD2D_GDIPlus.GDIP_StartEngine(False)
-            m_GDIPlusAvailable = StartRenderingEngine
-            
-        Case Else
-            InternalError "StartRenderingEngine", "unknown backend"
-    
-    End Select
-
+'Start a new rendering backend.  This must be called before using any pd2D features
+Public Function StartRenderingEngine() As Boolean
+    StartRenderingEngine = PD2D_GDIPlus.GDIP_StartEngine(False)
+    m_GDIPlusAvailable = StartRenderingEngine
 End Function
 
-'Stop a running rendering backend
-Public Function StopRenderingEngine(Optional ByVal targetBackend As PD_2D_RENDERING_BACKEND = P2_DefaultBackend) As Boolean
-        
-    Select Case targetBackend
-            
-        Case P2_DefaultBackend, P2_GDIPlusBackend
-            
-            'Prior to release, see if any GDI+ object counts are non-zero; if they are, the caller needs to
-            ' be notified, because those resources should be released before the backend disappears.
-            If PD2D_DEBUG_MODE Then
-                If (m_BrushCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_BrushCount_GDIPlus & " brush(es) active.  Release these objects before shutting down the drawing backend."
-                If (m_PathCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_PathCount_GDIPlus & " path(s) active.  Release these objects before shutting down the drawing backend."
-                If (m_PenCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_PenCount_GDIPlus & " pen(s) active.  Release these objects before shutting down the drawing backend."
-                If (m_RegionCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_RegionCount_GDIPlus & " region(s) active.  Release these objects before shutting down the drawing backend."
-                If (m_SurfaceCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_SurfaceCount_GDIPlus & " surface(s) active.  Release these objects before shutting down the drawing backend."
-                If (m_TransformCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_TransformCount_GDIPlus & " transform(s) active.  Release these objects before shutting down the drawing backend."
-            End If
-            
-            StopRenderingEngine = PD2D_GDIPlus.GDIP_StopEngine()
-            m_GDIPlusAvailable = False
-            
-        Case Else
-            InternalError "StopRenderingEngine", "unknown backend"
+'Stop a running rendering backend.  This must be called before your program exits.
+Public Function StopRenderingEngine() As Boolean
+
+    'Prior to release, see if any GDI+ object counts are non-zero; if they are, the caller needs to
+    ' be notified, because those resources should be released before the backend disappears.
+    If PD2D_DEBUG_MODE Then
+        If (m_BrushCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_BrushCount_GDIPlus & " brush(es) active.  Release these objects before shutting down the drawing backend."
+        If (m_PathCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_PathCount_GDIPlus & " path(s) active.  Release these objects before shutting down the drawing backend."
+        If (m_PenCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_PenCount_GDIPlus & " pen(s) active.  Release these objects before shutting down the drawing backend."
+        If (m_RegionCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_RegionCount_GDIPlus & " region(s) active.  Release these objects before shutting down the drawing backend."
+        If (m_SurfaceCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_SurfaceCount_GDIPlus & " surface(s) active.  Release these objects before shutting down the drawing backend."
+        If (m_TransformCount_GDIPlus <> 0) Then InternalError "StopRenderingEngine", "There are still " & m_TransformCount_GDIPlus & " transform(s) active.  Release these objects before shutting down the drawing backend."
+    End If
     
-    End Select
-    
+    StopRenderingEngine = PD2D_GDIPlus.GDIP_StopEngine()
+    m_GDIPlusAvailable = False
+            
 End Function
 
 'DEBUG FUNCTIONS FOLLOW.  These functions should not be called directly.  They are invoked by other pd2D class when PD2D_DEBUG_MODE = TRUE.
@@ -1295,28 +1257,11 @@ Public Function DrawSurfaceI(ByRef dstSurface As pd2DSurface, ByVal dstX As Long
 End Function
 
 Private Function AlphaBlendWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal srcIs32bpp As Boolean = True, Optional ByVal blendOpacity As Long = 255) As Boolean
-
-    Dim abParams As Long
-    
-    'Use the image's current alpha channel, and blend it with the supplied customAlpha value
     If srcIs32bpp Then
-        abParams = blendOpacity * &H10000 Or &H1000000
-        
-        'If the source is a pdDIB object, we could actually test for premultiplication here (and in fact,
-        ' pdDIB provides its own AlphaBlend wrapper that handles this for us).
-    
-    'Ignore alpha channel, and only use the supplied customAlpha value.
+        PD2D_GDI.AlphaBlend_32bppSource hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, blendOpacity
     Else
-        
-        ' (My memory is fuzzy after so many years, but I seem to recall old versions of Windows sometimes failing
-        '  to AlphaBlend if the alpha value was exactly 255 - as a failsafe, let's use 254 as necessary.
-        '  TODO: test this on XP, Win 7, Win 10 to confirm behavior.)
-        If (blendOpacity = 255) Then blendOpacity = 254
-        abParams = (blendOpacity * &H10000)
+        PD2D_GDI.AlphaBlend_24bppSource hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, blendOpacity
     End If
-    
-    AlphaBlend hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, abParams
-    
 End Function
 
 'Whenever floating-point coordinates are used, we must use GDI+ for rendering.  This is always slower than PD2D_GDI.

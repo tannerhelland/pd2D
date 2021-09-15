@@ -386,67 +386,75 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '***************************************************************************
-'pd2D Basic Raster (Bitmap) Sample Project
-'Copyright 2016 by Tanner Helland
+'pd2D Raster (Bitmap) Feature Overview
+'Copyright 2016-2021 by Tanner Helland
 'Created: 01/July/16
-'Last updated: 01/July/16
-'Last update: continued work on initial build
+'Last updated: 14/September/21
+'Last update: rebuild against latest pd2D API, improve comments
 '
-'This small form should help you "hit the ground running" when it comes to pd2D capabilities.  Here's what you
-' need to know:
+'This small project demonstrates some of pd2D's raster graphics capabilities.  Here's a quick overview.
 '
-'1) When your project starts, you must initialize a pd2D backend before doing any painting tasks.  This involves
-'   placing one line of code inside Form_Load or Sub Main():
+'1) When your project starts, you must initialize pd2D before using it.  Place this single line of code
+'   inside Form_Load() or Sub Main():
 '
-'   PD2D.StartRenderingEngine P2_DefaultBackend
+'   PD2D.StartRenderingEngine
 '
-'2) When your project ends, you need to release the backend you started inside Form_Load or Sub Main(), e.g.:
+'2) When your project ends, you need to terminate pd2D before exiting your program.  Place this single
+'   line of code in your project termination function:
 '
-'   PD2D.StopRenderingEngine P2_DefaultBackend
+'   PD2D.StopRenderingEngine
 '
-'3) pd2D is based on a simple drawing model: a PAINTER uses PENS and BRUSHES to draw on various SURFACES.
-'   For simplicity, this project declares a single painter instance at form-level.  The painter's name
-'   is "m_Painter", and it handles all interactions betweens PENS, BRUSHES, and SURFACES.
+'3) Raster images in pd2D are called SURFACES.  These surfaces can be created from image files (like JPEG
+'   or PNGs), or blank surfaces created in-memory (that you fill with your own drawings).  You can also
+'   "wrap" surface objects around existing VB objects like forms or picture boxes, which allows you to
+'   draw directly onto those VB objects.
 '
-'4) Drawing occurs on surfaces (the "pd2DSurface" class).  There are two primary ways to create a surface:
+'4) pd2D surfaces support transparency (alpha channels).  Note that this ONLY works for surfaces created
+'   from files or created in-memory.  Alpha channels DO NOT persist on surfaces wrapped around VB6 objects
+'   like picture boxes.  This is a VB6 limitation, not a pd2D one.  Note, however, that it is possible
+'   (and commonplace!) to draw surfaces WITH transparency information (like PNG files) onto surfaces
+'   WITHOUT transparency (like VB6 picture boxes).  When you do this, just remember that the picture box
+'   will not store any of the resulting transparency data.  (To work around this, you must create a blank
+'   in-memory surface, do all your drawing on that, then simply paint that surface to a picture box
+'   whenever you want to look at it.)
 '
-'   - You can wrap a surface around an existing VB object, like a picture box or form.  This lets you paint
-'     directly onto that object, but you must be aware of VB behavior with properties like .AutoRedraw.
-'     (For example, if .AutoRedraw is set to TRUE, you must use a line of code like
-'     "PictureBox.Picture = PictureBox.Image" to force the picture box to update.)
+'5) Wrapping surfaces around VB6 objects requires some understanding of how those VB6 objects behave.
+'   In particular, you must always use pixel coordinates (not twips or custom units), and you must be
+'   aware of VB behavior with properties like .AutoRedraw.  (For example, if .AutoRedraw is set to TRUE,
+'   you need a line of code like "PictureBox.Picture = PictureBox.Image" to force the picture box to
+'   update after drawing to it with pd2D commands.)
 '
-'   - You can also create an unlimited number of "in-memory" surfaces.  These surfaces are not tied to
-'     any on-screen object, which makes them both very fast, and capable of supporting very large sizes.
-'     However, to see the contents of an in-memory surface, you will eventually need to paint it onto a
-'     surface that *is* tied to the screen (like a form or picture box surface created via the first method).
+'6) In this little demo project, I will demonstrate points (4) and (5) in depth.  Specifically, I will
+'   create two surfaces:
 '
-'   In this demo, I'll use a combination of these two methods to demonstrate how "back-buffering" works.
-'   Specifically, I will create two surfaces:
+'   - An in-memory surface at the same size as the sample form's large picture box.  This surface is a
+'   pd2D object called "m_BackBuffer", and I do all my painting onto this surface.  Because this surface
+'   is not tied to an on-screen object (like a picture box), it can be as large as I want and it NEVER
+'   needs to synchronize with the screen.  This has numerous benefits - better performance, transparency
+'   support, and freedom from any current display settings, to mention a few.
 '
-'   - An in-memory surface at the same size as the sample form's large black picture box.  This surface is called
-'   "m_BackBuffer", and I will perform all painting tasks on this surface.  Because this surface is not tied to
-'   an on-screen object, it never needs to synchronize with the screen -- so painting to it is instantaneous.
+'   - So how do I see the contents of the in-memory surface?  Whenever I want to update the screen, I
+'   simply call the m_BackBuffer.CopySurfaceToDC() function and pass it the .hDC property of an on-screen
+'   picture box.  Per the function name, this copies the contents of the in-memory surface into the target
+'   object.  This operation is extremely quick, and most importantly, it is non-destructive for the source
+'   surface - so any transparency data or other features not supported by the picture box are still present.
 '
-'   - To show our painting results on-screen, I will periodically copy the contents of "m_BackBuffer" into a
-'   second surface, called "m_TargetPictureBox".  This surface is created by wrapping a pd2Dsurface object around
-'   the main form's black picture box, using the helpful PD2D.QuickCreateSurfaceFromDC() function.
+'7) When performing drawing tasks, you'll probably create lots of pd2D objects.  You never need to worry
+'   about destroying these resources.  pd2D takes care of this for you.
 '
-'5) When performing drawing tasks, you'll probably create lots of pens and brushes.  You never need to worry
-'   about destroying these resources.  pd2D takes care of this for you.  The same goes for in-memory surfaces,
-'   because pd2D has full control over those.
+'   THERE IS ONE EXCEPTION TO THIS RULE.  If you wrap pd2D surfaces around VB6 objects like picture boxes or
+'   forms, you need to destroy the pd2D surface objects before the underlying VB6 object is destroyed.
+'   This is not normally a problem unless you are creating and destroying controls as run-time -- but please
+'   be aware of it!)
 '
-'   The one exception to the "don't care about destroying resources" rule is surfaces that are wrapped around
-'   normal, on-screen VB objects like picture boxes or forms.  These surfaces need to be destroyed before the
-'   underlying object is destroyed, or you may run into trouble.  (This is not normally a problem unless you are
-'   creating and destroying controls as run-time -- but please be aware of it!)
+'8) To simplify a few common pd2D tasks, I've created some helper functions inside the master PD2D module.
+'   These functions are prefixed with "Quick", e.g. "PD2D.QuickCreateSolidPen", which lets you create a
+'   solid-colored pen for painting in just one line of code.  As you get started with the project, you may want
+'   to use those "Quick-" prefixed functions, as they can save you some time over manually instantiating pens
+'   and setting individual properties one line at a time.
 '
-'6) To simplify the most common pd2D tasks, I've created a lot of helper functions inside the master Drawing2D
-'   module.  These functions are prefixed with "Quick", e.g. "PD2D.QuickCreateSolidPen", which lets you
-'   create a solid-colored pen for painting in just one line of code.  You'll probably want to make use of these,
-'   as they can save you some trouble over manually instantiating pens and setting individual properties one line
-'   at a time.
-'
-'I think that's everything!
+'9) I think that's everything!  Please submit questions or feedback at the master pd2D repository:
+'    https://github.com/tannerhelland/pd2D
 '
 'All source code in this file is licensed under a modified BSD license.  This means you may use the code in your own
 ' projects IF you provide attribution.  For more information, please visit http://photodemon.org/about/license/
@@ -456,23 +464,32 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-'To prevent flickering, we're not going to draw directly onto the main form's picture box.  Instead, we're going to
-' draw to an invisible "in-memory" surface.  After our drawing is complete, we'll copy the entire contents of the
-' in-memory image to the screen in one fell swoop.  This approach is called "double-buffering".
+'To prevent flickering, we won't draw directly onto a VB6 object.  Instead, we will draw onto an "invisible"
+' in-memory surface.  After all of our drawing operations complete, we'll copy the entire contents of the
+' in-memory image to an on-screen object (like a picture box) in one fell swoop.  This approach is called
+' "double-buffering" and it's critical for high-quality rendering.  See Wikipedia for more details:
+' https://en.wikipedia.org/wiki/Multiple_buffering#Double_buffering_in_computer_graphics
 '
-'This "m_BackBuffer" surface is the in-memory image we'll be drawing to.
+'In common parlance, the "back buffer" is the off-screen buffer that collects all our rendering.  The on-screen
+' object that the user can actually see if called the "front buffer".
 Private m_BackBuffer As pd2DSurface
 
 'Whenever a new image is loaded, the current viewport (including any images layered atop each other) is stored inside
-' this surface; this surface is what we transform if the user selects "scale", "rotate", etc
+' this surface; this surface is what we transform if the user changes the transformation settings (like "scale"
+' or "rotate").
 Private m_CurrentImage As pd2DSurface
 
+'The user can change the "quality" of rotation, scaling, etc.  GDI+ provides three different algorithms for
+' interpolating pixels during transforms; we simply relay the dropdown selection to pd2D.
 Private Sub cboTransformQuality_Click()
     ApplyTransformation 0
 End Sub
 
+'Load a new image.  This function demonstrates how to load an image file (JPEG, PNG, TIFF, etc) into a VB
+' picture box object.
 Private Sub cmdLoadImage_Click()
     
+    'If the user wants us to clear the surface before loading a new image, do so now.
     If CBool(chkClearOnLoad.Value) Then picOutput.Cls
         
     'pd2D makes image loading fast and convenient.  Let's start by displaying a common dialog with filters
@@ -483,17 +500,20 @@ Private Sub cmdLoadImage_Click()
     Dim cFileOpen As pdOpenSaveDialog
     Set cFileOpen = New pdOpenSaveDialog
     
+    'Look at all those supported file types!  Wow!
     Dim supportedImageFiles As String
     supportedImageFiles = "Supported images|*.bmp;*.emf;*.gif;*.ico;*.jpg;*.jpeg;*.png;*.tif;*.tiff;*.wmf|All files|*.*"
     
+    'Raise an "open file" dialog
     Dim imgFilename As String
-    If cFileOpen.GetOpenFileName(imgFilename, "", True, False, supportedImageFiles, , GetSampleImageFolder, "Please select an image file", , frmSample.hWnd) Then
+    If cFileOpen.GetOpenFileName(imgFilename, "", True, False, supportedImageFiles, , GetSampleImageFolder(), "Please select an image file", , frmSample.hWnd) Then
         
-        'pd2D provides a simplified function for loading images - just one line of code!
-        PD2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+        'pd2D provides a simplified function for loading images into a VB object - just one line of code!
+        ' The library can also resize the image for us (to fit the on-screen space).
+        PD2D.QuickLoadPictureToVBObject picOutput, imgFilename, CBool(chkAutoFit.Value)
         
-        'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
-        ' user selects "rotate", "skew", etc
+        'Before exiting, let's demonstrate one more thing - how to copy the contents of a VB object
+        ' (like a picture box) into a pd2D object.
         CloneViewport
         
     End If
@@ -501,9 +521,14 @@ Private Sub cmdLoadImage_Click()
 End Sub
 
 Private Function GetSampleImageFolder() As String
+    
+    'Retrieve the current application folder, and ensure a trailing "\" is present
     GetSampleImageFolder = App.Path
     If (StrComp(Right$(GetSampleImageFolder, 1), "\", vbBinaryCompare) <> 0) Then GetSampleImageFolder = GetSampleImageFolder & "\"
+    
+    'Append the "test images" folder to it
     GetSampleImageFolder = GetSampleImageFolder & "test images\"
+    
 End Function
 
 Private Sub cmdSaveViewport_Click()
@@ -544,7 +569,7 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    PD2D.StartRenderingEngine P2_DefaultBackend
+    PD2D.StartRenderingEngine
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     
@@ -616,7 +641,7 @@ Private Sub Form_Unload(Cancel As Integer)
     Set m_CurrentImage = Nothing
     
     'As the final step at shutdown time, release the rendering backend we started inside Form_Load
-    PD2D.StopRenderingEngine P2_DefaultBackend
+    PD2D.StopRenderingEngine
     
 End Sub
 
@@ -673,16 +698,19 @@ Private Sub ApplyTransformation(ByVal srcScrollIndex As Integer)
         .ApplyRotation hscrTransform(2).Value / 10
         .ApplyShear hscrTransform(3).Value / 100, hscrTransform(4).Value / 100
         
-        'As the final step, note that we center the image in the current viewport
+        'As the final step, note that we re-center the image in the current viewport
         .ApplyTranslation m_BackBuffer.GetSurfaceWidth / 2, m_BackBuffer.GetSurfaceHeight / 2
     End With
     
-    'Paint the result!
-    m_BackBuffer.EraseSurfaceContents vbWhite, 100#
+    'Paint the result onto our master surface!
+    m_BackBuffer.EraseSurfaceContents vbWhite, 100!
     m_BackBuffer.SetSurfaceResizeQuality cboTransformQuality.ListIndex
     PD2D.DrawSurfaceTransformedF m_BackBuffer, m_CurrentImage, cTransform, 0, 0, m_CurrentImage.GetSurfaceWidth, m_CurrentImage.GetSurfaceHeight
     
-    'As the final step, copy the contents of the backbuffer to the viewport picture box
+    'As the final step, copy the contents of the backbuffer onto the "screen" (e.g. onto the viewport picture box).
+    ' Because we don't care about alpha values, note that we can COPY the contents over (replacing the picture box's
+    ' contents entirely) which tends to be faster than DRAWING our contents onto the picturebox (which would composite
+    ' the two surfaces).
     m_BackBuffer.CopySurfaceToDC picOutput.hDC
     
 End Sub
@@ -717,7 +745,7 @@ Private Sub LoadSampleImage()
             imgFilename = GetSampleImageFolder & "music_icon.png"
     End Select
     
-    PD2D.QuickLoadPicture picOutput, imgFilename, CBool(chkAutoFit.Value)
+    PD2D.QuickLoadPictureToVBObject picOutput, imgFilename, CBool(chkAutoFit.Value)
     
     'While here, we're also going to make a copy of the current viewport; this copy is what we'll transform if the
     ' user selects "rotate", "skew", etc
@@ -725,11 +753,16 @@ Private Sub LoadSampleImage()
     
 End Sub
 
+'Sample of how to copy the contents of a VB6 object (like a picture box) into an in-memory pd2D surface.
 Private Sub CloneViewport()
     
+    'Use the "Quick-" prefixed helper function to wrap a pd2D surface around the target picture box.
+    ' (By also passing the control's hWnd property, we can query the picture box's size - in pixels -
+    ' directly, without worrying about the current ScaleMode property.)
     Dim tmpViewport As pd2DSurface
-    PD2D.QuickCreateSurfaceFromDC tmpViewport, picOutput.hDC, , picOutput.hWnd
+    PD2D.QuickWrapSurfaceAroundDC tmpViewport, picOutput.hDC, srcHwnd:=picOutput.hWnd
     
+    'Next, clone the contents of the picture box into
     If (m_CurrentImage Is Nothing) Then Set m_CurrentImage = New pd2DSurface
     m_CurrentImage.CloneSurface tmpViewport
     

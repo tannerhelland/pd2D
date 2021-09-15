@@ -676,7 +676,7 @@ Friend Function CreateBlank(ByVal imgWidth As Long, ByVal imgHeight As Long, Opt
                 
                     If (initialColor <> vbWhite) And (initialColor <> vbBlack) Then initialColor = TranslateColor(initialColor)
                     
-                    PD2D.QuickCreateSurfaceFromDC cSurface, Me.GetDIBDC, False
+                    PD2D.QuickWrapSurfaceAroundDC cSurface, Me.GetDIBDC, False
                     cSurface.SetSurfaceCompositing P2_CM_Overwrite
                     PD2D.QuickCreateSolidBrush cBrush, initialColor, initialAlpha / 2.55
                     PD2D.FillRectangleF cSurface, cBrush, 0, 0, imgWidth + 1, imgHeight + 1
@@ -768,7 +768,7 @@ Friend Function CreateBlank(ByVal imgWidth As Long, ByVal imgHeight As Long, Opt
                             'The back color may or may not be a system color, so translate it just in case
                             If (initialColor <> vbWhite) Then initialColor = TranslateColor(initialColor)
                             
-                            PD2D.QuickCreateSurfaceFromDC cSurface, m_dibDC, False
+                            PD2D.QuickWrapSurfaceAroundDC cSurface, m_dibDC, False
                             PD2D.QuickCreateSolidBrush cBrush, initialColor, initialAlpha / 2.55
                             PD2D.FillRectangleF cSurface, cBrush, 0, 0, imgWidth + 1, imgHeight + 1
                             Set cSurface = Nothing

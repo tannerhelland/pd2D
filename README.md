@@ -1,14 +1,14 @@
-# pd2D 0.1 (pre-alpha)
+## pd2D is a high-performance, zero-dependency 2D graphics library for VB6 
 
-## pd2D is a high-performance, zero-dependency 2D graphics library for classic VB 
+pd2D is a zero-dependency, class-based wrapper for GDI+ (with some GDI and custom functionality mixed in).  It allows you to use advanced 2D graphics features without worrying about memory management, leaks, or GDI+'s many annoying quirks.
 
 ## Project status
 
-pd2D is in alpha status.  It is not feature-complete, but its GDI+ backend already supports a large variety of rendering tasks.
+pd2D is currently in beta.  
 
-The bulk of the library's API *should* be stable, but small changes are possible between now and a 1.0 release.  The library's rendering code is (mostly) stable and (mostly) leak-free.  
+The bulk of the library's API *should* be stable, but small changes are possible between now and a 1.0 release.  The library's rendering code is stable and leak-free.  
 
-Feedback is very welcome, particularly regarding the library's design.  There's plenty of time to modify things before a 1.0 release.  (A timeline for said 1.0 release is still nebulous... but it won't be until the end of summer at the earliest, so I can guarantee a decent amount of testing.)
+Feedback is welcome, particularly regarding the library's design.  Its API was originally designed to solve problems specific to my own projects, and I am happy to generalize it for more widespread use.
 
 ## Other things to know:
 
@@ -16,15 +16,11 @@ Feedback is very welcome, particularly regarding the library's design.  There's 
 
 pd2D is derived from the open-source PhotoDemon photo editor (https://github.com/tannerhelland/PhotoDemon).  Like its parent project, pd2D is available under a liberal BSD license.  This license allows you to use the library in any project, commercial or otherwise.  (Please see the LICENSE.MD file for specific details, including disclaimer of warranty.)
 
-You are also free to fork this library and/or make your own modifications.  (And of course, I am very happy to look at pull requests - so send over your bug fixes and new features ASAP!)
+You are also free to fork this library and/or make your own modifications.  Pull requests are also welcome.
 
 ### pd2D has no external dependencies
 
-The library's default backend leans on standard libraries available all the way back to Windows XP.  Windows XP through the latest Windows 10 builds are considered "fully supported."
-
-### pd2D is designed with multiple backends in mind
-
-The default pd2D build uses a mixture of GDI, GDI+, and custom code, but it can easily be extended to support other backends.  For example, you could wrap pd2D's API around a 2D library like Cairo with little effort.  Suggestions for alternate backends (or even better, pull requests!) are always welcome.
+The library's default backend leans on standard libraries available all the way back to Windows XP.  Windows XP through the latest Windows 11 builds are considered "fully supported."
 
 ### pd2D does not require you to be a graphics expert
 
@@ -49,5 +45,3 @@ If you can't contribute monetarily, here are some other ways to help:
 ### How do I use pd2D?
 
 This repository is divided into two parts: the bare pd2D source (available in the /pd2D folder), and various sample projects (available in the /samples folder).  Start with the sample project that interests you most.  They are all thoroughly commented.
-
-I am still fleshing out the sample project collection, so if there's something in particular you'd like to see, please let me know.

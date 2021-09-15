@@ -56,42 +56,41 @@ Private Type GDI_BitmapInfo
     bmiColors(0 To 255) As GDI_RGBQuad
 End Type
 
-'Private Enum GDI_PenStyle
-'    PS_SOLID = 0
-'    PS_DASH = 1
-'    PS_DOT = 2
-'    PS_DASHDOT = 3
-'    PS_DASHDOTDOT = 4
-'End Enum
-'
-'#If False Then
-'    Private Const PS_SOLID = 0, PS_DASH = 1, PS_DOT = 2, PS_DASHDOT = 3, PS_DASHDOTDOT = 4
-'#End If
-
 Private Const GDI_OBJ_BITMAP As Long = 7&
 Private Const GDI_CBM_INIT As Long = &H4
 Private Const GDI_DIB_RGB_COLORS As Long = &H0
 
+Private Declare Function AlphaBlend Lib "gdi32" Alias "GdiAlphaBlend" (ByVal hDstDC As Long, ByVal x As Long, ByVal y As Long, ByVal nWidth As Long, ByVal nHeight As Long, ByVal hSrcDC As Long, ByVal xSrc As Long, ByVal ySrc As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, ByVal blendFunct As Long) As Long
 Private Declare Function BitBlt Lib "gdi32" (ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal rastOp As Long) As Long
 Private Declare Function StretchBlt Lib "gdi32" (ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, ByVal rastOp As Long) As Long
 Private Declare Function CreateCompatibleDC Lib "gdi32" (ByVal hDC As Long) As Long
 Private Declare Function CreateDIBitmap Lib "gdi32" (ByVal hDC As Long, ByRef lpInfoHeader As GDI_BitmapInfoHeader, ByVal dwUsage As Long, ByVal ptrToInitBits As Long, ByVal ptrToInitBitmapInfo As Long, ByVal wUsage As Long) As Long
-'Private Declare Function CreatePen Lib "gdi32" (ByVal nPenStyle As GDI_PenStyle, ByVal nWidth As Long, ByVal srcColor As Long) As Long
 Private Declare Function CreateSolidBrush Lib "gdi32" (ByVal srcColor As Long) As Long
 Private Declare Function DeleteDC Lib "gdi32" (ByVal hDC As Long) As Long
 Private Declare Function DeleteObject Lib "gdi32" (ByVal hObject As Long) As Long
-'Private Declare Function GdiFlush Lib "gdi32" () As Long    'We don't require this right now, but it may be useful in the future
-Private Declare Function GetCurrentObject Lib "gdi32" (ByVal srcDC As Long, ByVal srcObjectType As Long) As Long
+Private Declare Function GetCurrentObject Lib "gdi32" (ByVal hSrcDC As Long, ByVal srcObjectType As Long) As Long
 Private Declare Function GetObject Lib "gdi32" Alias "GetObjectW" (ByVal hObject As Long, ByVal sizeOfBuffer As Long, ByVal ptrToBuffer As Long) As Long
-'Private Declare Function LineTo Lib "gdi32" (ByVal hDC As Long, ByVal x As Long, ByVal y As Long) As Long
-'Private Declare Function MoveToEx Lib "gdi32" (ByVal hDC As Long, ByVal x As Long, ByVal y As Long, ByVal pointerToRectOfOldCoords As Long) As Long
-'Private Declare Function SelectObject Lib "gdi32" (ByVal hDC As Long, ByVal hObject As Long) As Long
 
 'Helper functions from user32
 Private Declare Function FillRect Lib "user32" (ByVal hDstDC As Long, ByVal ptrToRect As Long, ByVal hSrcBrush As Long) As Long
 Private Declare Function GetClientRect Lib "user32" (ByVal hndWindow As Long, ByVal ptrToRectL As Long) As Long
 Private Declare Function GetDC Lib "user32" (ByVal hWnd As Long) As Long
 Private Declare Function ReleaseDC Lib "user32" (ByVal hWnd As Long, ByVal hDC As Long) As Long
+
+Public Function AlphaBlend_24bppSource(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal blendOpacity As Long = 255) As Boolean
+    
+    ' (My memory is fuzzy after so many years, but I seem to recall old versions of Windows sometimes failing
+    '  to AlphaBlend if the alpha value was exactly 255 and the source bitmap was 24-bpp - as a failsafe,
+    ' we use 254 here, which makes an imperceptible difference.  (TODO: test this on XP, Win 7, Win 10 to
+    ' confirm behavior.)
+    If (blendOpacity = 255) Then blendOpacity = 254
+    AlphaBlend_24bppSource = (AlphaBlend(hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, (blendOpacity * &H10000)) <> 0)
+    
+End Function
+
+Public Function AlphaBlend_32bppSource(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, ByVal srcWidth As Long, ByVal srcHeight As Long, Optional ByVal blendOpacity As Long = 255) As Boolean
+    AlphaBlend_32bppSource = (AlphaBlend(hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, srcWidth, srcHeight, blendOpacity * &H10000 Or &H1000000) <> 0)
+End Function
 
 Public Function BitBltWrapper(ByVal hDstDC As Long, ByVal dstX As Long, ByVal dstY As Long, ByVal dstWidth As Long, ByVal dstHeight As Long, ByVal hSrcDC As Long, ByVal srcX As Long, ByVal srcY As Long, Optional ByVal rastOp As Long = vbSrcCopy) As Boolean
     BitBltWrapper = (BitBlt(hDstDC, dstX, dstY, dstWidth, dstHeight, hSrcDC, srcX, srcY, rastOp) <> 0)

@@ -626,6 +626,19 @@ Friend Function CreateSurfaceFromPtr(ByVal srcPtr As Long, ByVal srcLen As Long,
     
 End Function
 
+'Paint the current contents of this surface to some target DC.  (This is a nice shorthand function for
+' flipping backbuffers, for example.)  I know it's weird, but if you don't supply a destination width
+' and height, the surface's current width/height values will be automatically plugged in.
+Friend Function DrawSurfaceToDC(ByVal dstDC As Long, Optional ByVal dstX As Long = 0, Optional ByVal dstY As Long = 0, Optional ByVal dstWidth As Long = 0, Optional ByVal dstHeight As Long = 0, Optional ByVal srcX As Long = 0, Optional ByVal srcY As Long = 0) As Boolean
+    If (dstWidth = 0) Then dstWidth = Me.GetSurfaceWidth
+    If (dstHeight = 0) Then dstHeight = Me.GetSurfaceHeight
+    If Me.GetSurfaceAlphaSupport() Then
+        DrawSurfaceToDC = PD2D_GDI.AlphaBlend_32bppSource(dstDC, dstX, dstY, dstWidth, dstHeight, Me.GetSurfaceDC, srcX, srcY, Me.GetSurfaceWidth(), Me.GetSurfaceHeight(), 255)
+    Else
+        DrawSurfaceToDC = PD2D_GDI.AlphaBlend_24bppSource(dstDC, dstX, dstY, dstWidth, dstHeight, Me.GetSurfaceDC, srcX, srcY, Me.GetSurfaceWidth(), Me.GetSurfaceHeight(), 255)
+    End If
+End Function
+
 'Wrap this surface around some existing hDC.  The DC can be any type (display or memory; printer may also work but I haven't
 ' tested them *at all*).
 '
@@ -696,7 +709,7 @@ End Function
 'Note that this class may recreate the target DIB under certain circumstances (e.g. after a resize is requested),
 ' so just because a DIB was previously attached to this surface doesn't mean it is attached now.  Keep an eye
 ' out for this if you get unexpected results, and you are calling functions like in-place resizes.
-Friend Function WrapSurfaceAroundpd2ddib(ByRef srcDIB As pd2DDIB) As Boolean
+Friend Function WrapSurfaceAroundpd2DDIB(ByRef srcDIB As pd2DDIB) As Boolean
     
     If (m_SurfaceHandle <> 0) Then Me.ReleaseSurface
     
@@ -710,13 +723,13 @@ Friend Function WrapSurfaceAroundpd2ddib(ByRef srcDIB As pd2DDIB) As Boolean
             InternalError "WrapSurfaceAroundpd2ddib", "GDI+ failure"
         End If
         
-        WrapSurfaceAroundpd2ddib = (m_SurfaceHandle <> 0)
+        WrapSurfaceAroundpd2DDIB = (m_SurfaceHandle <> 0)
         
         'Apply any other stored settings to the newly created surface
-        If WrapSurfaceAroundpd2ddib Then SyncAllPropertiesToBackend
+        If WrapSurfaceAroundpd2DDIB Then SyncAllPropertiesToBackend
         
         'When debug mode is active, all object creations are reported back to the master PD2D module
-        If (WrapSurfaceAroundpd2ddib And PD2D_DEBUG_MODE) Then PD2D.DEBUG_NotifySurfaceCountChange True
+        If (WrapSurfaceAroundpd2DDIB And PD2D_DEBUG_MODE) Then PD2D.DEBUG_NotifySurfaceCountChange True
         
     Else
         InternalError "WrapSurfaceAroundpd2ddib", "null DIB"

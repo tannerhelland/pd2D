@@ -430,7 +430,7 @@ Private Sub Form_Load()
     ' (This approach is required by GDI+, because GDI+ offloads some processing tasks to a background thread.)
     '
     'For now, the default backend and GDI+ backends are identical, so it doesn't matter which one we pick.
-    PD2D.StartRenderingEngine P2_DefaultBackend
+    PD2D.StartRenderingEngine
     
     '(Note that you also need to *stop* this rendering backend inside Form_Unload().
     
@@ -491,7 +491,7 @@ Private Sub Form_Unload(Cancel As Integer)
     Erase m_ListOfPolygons
     
     'As the final step at shutdown time, release the rendering backend we started inside Form_Load
-    PD2D.StopRenderingEngine P2_DefaultBackend
+    PD2D.StopRenderingEngine
     
 End Sub
 
